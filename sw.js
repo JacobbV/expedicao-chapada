@@ -42,11 +42,17 @@ self.addEventListener("fetch", e => {
     return;
   }
   if (url.origin !== location.origin) return; // Firestore e login vão direto para a rede
-  // Arquivos do app: responde do cache e atualiza em segundo plano
+  // Arquivos do app: com internet busca sempre a versão nova (todos os arquivos da mesma versão);
+  // sem internet, ou se a rede demorar mais de 4 s, usa a cópia guardada
   e.respondWith(caches.open(SHELL).then(async c => {
     const key = req.mode === "navigate" ? "./index.html" : req;
+    const fromNet = fetch(req, { cache: "no-cache" }).then(res => { if (res.ok) c.put(key, res.clone()); return res; });
+    const timeout = new Promise(r => setTimeout(r, 4000));
+    try {
+      const res = await Promise.race([fromNet, timeout.then(() => null)]);
+      if (res) return res;
+    } catch (err) {}
     const hit = await c.match(key, { ignoreSearch: true });
-    const net = fetch(req).then(res => { if (res.ok) c.put(key, res.clone()); return res; }).catch(() => hit);
-    return hit || net;
+    return hit || fromNet;
   }));
 });

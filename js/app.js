@@ -96,7 +96,7 @@ function renderTop() {
   const m = me();
   $("#mePill").querySelector("span").textContent = m ? rname(m) : "Quem é você?";
   document.querySelectorAll(".nav a").forEach(a => {
-    const r = a.dataset.r, cur = ["hospedagem", "pendencias", "pilotos", "ajustes"].includes(route) ? "mais" : route;
+    const r = a.dataset.r, cur = route;
     a.toggleAttribute("aria-current", r === cur); if (r === cur) a.setAttribute("aria-current", "page");
   });
 }
@@ -135,6 +135,7 @@ function render() {
   if (ST.mode === "cloud" && ST.authReady && !ST.user) return renderLogin();
   if ($("#layer .login")) $("#layer").innerHTML = "";
   if (!S.trip) { $("#view").innerHTML = `<div class="card"><p>${ST.error ? esc(ST.error) : "Baixando os dados da viagem…"}</p></div>`; renderTop(); return; }
+  if (route === "mais") { route = "inicio"; history.replaceState(null, "", "#inicio"); setTimeout(openMenu, 0); }
   if (!VIEWS[route]) route = "inicio";
   if (!viewRider || !S.riders[viewRider]) viewRider = me() || riderIds()[0];
   if (route === "mapa" && mapView && mapView.alive()) { updateMapParts(); renderTop(); return; }
@@ -441,7 +442,23 @@ function mais() {
     <a href="#pilotos">Pilotos e motos <span class="muted">consumo e autonomia</span></a>
     <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a></div>`;
 }
-const backLink = `<a class="back" href="#mais">← Mais</a>`;
+const backLink = `<button class="back" type="button" data-act="openMenu">← Menu</button>`;
+function openMenu() {
+  const conf = Object.values(S.lodging || {}).filter(l => l.status === "confirmada").length;
+  const open = PEND.length + Object.keys(S.pend?.custom || {}).length - Object.keys(S.pend?.done || {}).length;
+  $("#layer").innerHTML = `<div class="drawer-bg" data-close="1"><nav class="drawer" aria-label="Menu">
+    <div class="between"><h3>Menu</h3><button class="x" data-close="1" aria-label="Fechar">×</button></div>
+    <div class="menu">
+      <a href="#hospedagem">Hospedagem <span class="muted">${conf}/3 confirmadas</span></a>
+      <a href="#pendencias">Pendências <span class="muted">${open} abertas</span></a>
+      <a href="#pilotos">Pilotos e motos <span class="muted">consumo e autonomia</span></a>
+      <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a>
+    </div>
+    <p class="muted" style="font-size:.8rem">Versão ${esc(self.APP_VERSION || "?")}</p></nav></div>`;
+  const bg = $("#layer").firstElementChild;
+  bg.addEventListener("click", e => { if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = ""; });
+}
+$("#menuBtn").addEventListener("click", () => openMenu());
 
 function hospedagem() {
   const ds = days();
@@ -703,6 +720,7 @@ $("#view").addEventListener("click", e => {
   else if (act === "clf") { clFilter = b.dataset.v; render(); }
   else if (act === "st") { const rid = viewRider; if (!canEdit(rid)) return; const s = b.dataset.s;
     store.merge("checklist/" + rid, { items: { [id]: s === baseStatus(rid, id) ? null : s } }); }
+  else if (act === "openMenu") openMenu();
   else if (act === "gtab") { gastosTab = b.dataset.v; render(); }
   else if (act === "newExp") expForm(null, b.dataset.kind);
   else if (act === "editExp") expForm(b.dataset.kind === "prep" ? prepExpenses().find(x => x.id === id) : expenses().find(x => x.id === id), b.dataset.kind);

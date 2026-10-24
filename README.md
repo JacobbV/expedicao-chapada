@@ -13,10 +13,10 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo e filtrar por circuito |
 | **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
 | **Gastos** | Duas abas. **Gastos da viagem** são vistos pelos dois (combustível, hospedagem, alimentação, pedágio, passeios e guias, estacionamento, imprevistos), e cada gasto pode ser dividido ou não; os divididos entram no acerto de contas. **Minha preparação** é **privada**: cada conta vê só os seus gastos (moto e manutenção, proteção, bagagem, ferramentas, navegação, roupas, trilhas, fotos) |
-| **Mais → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
-| **Mais → Pendências** | Lista por prioridade, com pendências próprias |
-| **Mais → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
-| **Mais → Ajustes** | Preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
+| **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
+| **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
+| **Menu ☰ → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
+| **Menu ☰ → Ajustes** | Preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
 
 ## Mapa
 

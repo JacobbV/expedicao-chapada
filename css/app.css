@@ -53,7 +53,7 @@ main{padding-top:20px;padding-bottom:calc(var(--nav-h) + 28px + env(safe-area-in
 
 /* Navegação inferior */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-.nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--nav-h)}
+.nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
 .nav a{display:grid;place-items:center;align-content:center;gap:3px;text-decoration:none;color:var(--muted);font-size:.7rem;font-weight:700;letter-spacing:.02em}
 .nav a svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .nav a[aria-current="page"]{color:var(--fg)}
@@ -214,10 +214,20 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 .ptmark{width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;font:800 .8rem/26px var(--f-body);text-align:center}
 .ptt{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .ptt small{display:block;font-weight:500;color:var(--muted);font-size:.8rem}
-.nav a{font-size:.66rem}
+.nav a{font-size:.7rem}
 
 /* Gastos: abas e legenda */
 .tabs2{display:grid;grid-template-columns:1fr 1fr;width:100%}
 .tabs2 button{padding:11px 8px;font-size:.85rem}
 .legend summary{cursor:pointer;font-weight:700}
 .legend .kv{grid-template-columns:max-content minmax(0,1fr);align-items:baseline}
+
+/* Menu do topo (gaveta lateral) */
+.menubtn{appearance:none;border:1px solid #444c50;background:var(--asphalt-2);color:var(--asphalt-fg);width:36px;height:32px;border-radius:999px;display:grid;place-items:center;cursor:pointer;flex:none}
+.menubtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.top .pill{flex:none;max-width:42vw;overflow:hidden;text-overflow:ellipsis}
+.drawer-bg{position:fixed;inset:0;z-index:40;background:rgba(10,12,11,.5);display:flex;justify-content:flex-end}
+.drawer{background:var(--surface);width:min(320px,86vw);height:100%;overflow:auto;padding:calc(18px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 18px 16px;display:grid;align-content:start;gap:12px;box-shadow:var(--shadow)}
+.drawer .menu a{font-size:.95rem}
+.back{appearance:none;border:0;background:none;padding:0;cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.drawer{animation:slidein .2s ease-out}@keyframes slidein{from{transform:translateX(40px);opacity:.6}to{transform:none;opacity:1}}}
