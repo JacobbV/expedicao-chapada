@@ -166,6 +166,7 @@ function cloudStore() {
     },
     async signIn(email, pw) { await authMod.signInWithEmailAndPassword(auth, email, pw); },
     async signOut() { await authMod.signOut(auth); },
+    async resetPassword(email) { auth.languageCode = "pt-BR"; await authMod.sendPasswordResetEmail(auth, email); },
     merge(key, patch) { return w(fs.setDoc(refFor(key), toFs(patch), { merge: true })); },
     put(col, id, data) { return w(fs.setDoc(fs.doc(db, ...base, col, id), data)); },
     remove(col, id) { return w(fs.deleteDoc(fs.doc(db, ...base, col, id))); },

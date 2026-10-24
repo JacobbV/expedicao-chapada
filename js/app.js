@@ -159,16 +159,29 @@ function renderLogin() {
   $("#layer").innerHTML = `<div class="login"><form id="loginForm" novalidate>
     <div class="label" style="color:var(--asphalt-muted)">Janeiro de 2027</div>
     <h1>Expedição <span>Chapada</span></h1>
+    <p style="color:var(--asphalt-muted);margin-top:-6px">Roteiro, mapa, checklist e gastos da viagem.</p>
     <label class="field"><span>E-mail</span><input id="lgEmail" type="email" autocomplete="username" required></label>
     <label class="field"><span>Senha</span><input id="lgPw" type="password" autocomplete="current-password" required></label>
     <p class="err" id="lgErr" hidden></p>
+    <p class="okmsg" id="lgOk" hidden></p>
     <button class="btn primary block" type="submit">Entrar</button>
-    <p style="font-size:.82rem;color:var(--asphalt-muted)">As contas são criadas pelo Jacó no Firebase. Depois do primeiro login, o app abre direto, mesmo sem internet.</p>
+    <button class="linkbtn" type="button" id="lgForgot">Esqueci minha senha</button>
+    <p class="login-foot">Criado por Jacó · <a href="https://github.com/JacobbV" target="_blank" rel="noopener">GitHub</a></p>
   </form></div>`;
+  const err = $("#lgErr"), ok = $("#lgOk");
   $("#loginForm").addEventListener("submit", async e => {
-    e.preventDefault(); const err = $("#lgErr"); err.hidden = true;
+    e.preventDefault(); err.hidden = true; ok.hidden = true;
     try { await store.signIn($("#lgEmail").value.trim(), $("#lgPw").value); }
-    catch (ex) { err.hidden = false; err.textContent = /invalid|wrong|user-not-found|credential/.test(ex.code || "") ? "E-mail ou senha incorretos." : ex.code === "auth/network-request-failed" ? "Sem internet. O primeiro login precisa de conexão." : "Não foi possível entrar: " + (ex.code || ex.message); }
+    catch (ex) { err.hidden = false; err.textContent = /invalid|wrong|user-not-found|credential/.test(ex.code || "") ? "E-mail ou senha incorretos." : ex.code === "auth/network-request-failed" ? "Sem internet. Para entrar a primeira vez, conecte-se." : ex.code === "auth/too-many-requests" ? "Muitas tentativas. Espere alguns minutos e tente de novo." : "Não foi possível entrar. Tente de novo."; }
+  });
+  $("#lgForgot").addEventListener("click", async () => {
+    err.hidden = true; ok.hidden = true;
+    const email = $("#lgEmail").value.trim();
+    if (!email) { err.hidden = false; err.textContent = "Digite seu e-mail acima e toque de novo em “Esqueci minha senha”."; $("#lgEmail").focus(); return; }
+    try { await store.resetPassword(email); }
+    catch (ex) { if (ex.code === "auth/network-request-failed") { err.hidden = false; err.textContent = "Sem internet. Conecte-se para recuperar a senha."; return; }
+      if (ex.code === "auth/invalid-email") { err.hidden = false; err.textContent = "Esse e-mail não parece válido."; return; } }
+    ok.hidden = false; ok.textContent = "Se esse e-mail tiver conta, enviamos um link para criar uma nova senha. Confira também o spam.";
   });
 }
 
