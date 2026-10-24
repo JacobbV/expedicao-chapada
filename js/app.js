@@ -1,4 +1,4 @@
-import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATEGORIES, TRIP_CATS, PREP_CATS, LEGACY_PREP, PTYPES, baseStatus, addDays } from "./data.js";
+import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATS, CAT_ALIAS, LEGACY_PREP, PTYPES, baseStatus, addDays } from "./data.js";
 import { createStore, newId } from "./store.js";
 import { ensureLeaflet, MapView, pinHTML, distKm } from "./map.js";
 
@@ -56,7 +56,7 @@ function progress(rid) {
 }
 const expenses = () => Object.entries(S.expenses || {}).map(([id, e]) => ({ id, ...e })).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0));
 function settlement() {
-  const ids = riderIds(), list = expenses().filter(e => e.shared && !e.fromPrep && e.cat in TRIP_CATS);
+  const ids = riderIds(), list = expenses().filter(e => e.shared && !e.fromPrep);
   const total = list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const share = ids.length ? total / ids.length : 0;
   const bal = {}; ids.forEach(id => bal[id] = -share);
@@ -347,9 +347,13 @@ function checklist() {
 }
 
 /* ---------- GASTOS ---------- */
-const isTripCat = c => c in TRIP_CATS;
+const normCat = c => CAT_ALIAS[c] || c;
+// Categorias criadas em “Outros”: cada piloto guarda as suas no próprio perfil; todos usam todas
+const customCats = () => { const o = {}; Object.values(S.riders || {}).forEach(r => Object.assign(o, r.cats || {})); return o; };
+const allCats = () => { const { outros, ...base } = CATS; return { ...base, ...customCats(), outros }; };
+const catLabel = c => { const k = normCat(c); return allCats()[k] || CATS[k] || k; };
 // Gastos da viagem = os lançados na viagem + os da preparação que o dono escolheu exibir
-const tripExpenses = () => expenses().filter(e => isTripCat(e.cat) || e.fromPrep);
+const tripExpenses = () => expenses().filter(e => !(e.cat in LEGACY_PREP) || e.fromPrep);
 const prepExpenses = () => Object.entries(S.prep || {}).map(([id, e]) => ({ id, ...e })).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0));
 const sumAmt = l => l.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 const byDate = (a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0);
@@ -358,10 +362,10 @@ function myTripCost(rid) { // o que cabe a cada um: o que pagou sozinho + metade
   return sumAmt(l.filter(e => !e.shared && e.rider === rid)) + sumAmt(l.filter(e => e.shared)) / n;
 }
 function catBars(list) {
-  const byCat = {}; list.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + (Number(e.amount) || 0));
+  const byCat = {}; list.forEach(e => { const k = normCat(e.cat); byCat[k] = (byCat[k] || 0) + (Number(e.amount) || 0); });
   if (!Object.keys(byCat).length) return "";
   const max = Math.max(1, ...Object.values(byCat));
-  return `<div class="card stack"><h3>Por categoria</h3>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="catrow"><span>${esc(CATEGORIES[k] || k)}</span><span class="b"><i style="width:${v / max * 100}%"></i></span><span class="num">${brl(v)}</span></div>`).join("")}</div>`;
+  return `<div class="card stack"><h3>Por categoria</h3>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="catrow"><span>${esc(catLabel(k))}</span><span class="b"><i style="width:${v / max * 100}%"></i></span><span class="num">${brl(v)}</span></div>`).join("")}</div>`;
 }
 // kind: "trip" (gasto da viagem), "prep" (meu, privado); src marca de onde veio na lista Meus gastos
 function expRows(list, view) {
@@ -372,8 +376,8 @@ function expRows(list, view) {
       view === "mine" && kind === "prep" ? (e.show ? `<span class="chip s-ok">exibido</span>` : `<span class="chip s-mute">🔒 privado</span>`) : "",
       view === "mine" && kind === "trip" ? `<span class="chip s-est">da viagem</span>` : ""].join(" ");
     return `<button class="exp" data-act="editExp" data-kind="${kind}" data-id="${e.id}">
-      <span class="t">${esc(e.desc || CATEGORIES[e.cat] || "Gasto")}</span><span class="v">${brl(e.amount)}</span>
-      <span class="m">${e.date ? wd(e.date) + " " + fmtD(e.date) + " · " : ""}${esc(CATEGORIES[e.cat] || "")}${view === "trip" ? " · " + esc(rname(e.rider)) : ""}${e.liters ? ` · ${num(e.liters, 2)} L a ${brl(e.ppl)}` : ""}</span>
+      <span class="t">${esc(e.desc || catLabel(e.cat) || "Gasto")}</span><span class="v">${brl(e.amount)}</span>
+      <span class="m">${e.date ? wd(e.date) + " " + fmtD(e.date) + " · " : ""}${esc(catLabel(e.cat))}${view === "trip" ? " · " + esc(rname(e.rider)) : ""}${e.liters ? ` · ${num(e.liters, 2)} L a ${brl(e.ppl)}` : ""}</span>
       <span class="m">${tags}</span></button>`; }).join("");
 }
 function gastos() {
@@ -414,19 +418,21 @@ function gastos() {
 }
 function expForm(e, kind) {
   const isNew = !e; const m = me() || riderIds()[0]; const prep = kind === "prep";
-  const cats = prep ? PREP_CATS : TRIP_CATS;
+  const cats = allCats();
   e = e || { rider: m, cat: prep ? "moto" : "combustivel", date: todayISO(), amount: "", desc: "", shared: false, show: false, liters: "", ppl: S.trip.gasPrice };
   // um gasto exibido da preparação de outra pessoa abre só para leitura
   const othersPrep = prep && !isNew && e.fromPrep && e.rider !== m;
   const readonly = othersPrep || (!prep && !isNew && !canEdit(e.rider));
   const riders = riderIds().filter(id => ST.mode === "local" || id === m || id === e.rider);
-  const catList = othersPrep ? { [e.cat]: CATEGORIES[e.cat] || e.cat } : cats;
+  if (e.cat) e = { ...e, cat: normCat(e.cat) };
+  const catList = othersPrep ? { [e.cat]: catLabel(e.cat) } : (e.cat in cats ? cats : { ...cats, [e.cat]: catLabel(e.cat) });
   openSheet(`<h3>${isNew ? "Novo gasto" : readonly ? "Gasto" : "Editar gasto"}</h3>
    <p class="muted" style="font-size:.85rem">${othersPrep ? `Gasto da preparação que ${esc(rname(e.rider))} escolheu exibir.` : prep ? "🔒 Meus gastos: só você vê, a menos que ligue “Exibir para o grupo”." : "Gasto da viagem: os dois veem."}</p>
    <form id="expF" class="stack">
     <fieldset ${readonly ? "disabled" : ""} style="border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0">
     <div class="grid2">${prep ? "" : `<label class="field"><span>Quem pagou</span><select id="eRider">${riders.map(id => `<option value="${id}" ${e.rider === id ? "selected" : ""}>${esc(rname(id))}</option>`).join("")}</select></label>`}
     <label class="field"><span>Categoria</span><select id="eCat">${Object.entries(catList).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <label class="field" id="newCatBox" hidden><span>Nova categoria (opcional)</span><input id="eNewCat" maxlength="30" placeholder="Ex.: Lavagem da moto"><small>Ela fica salva e aparece na lista para os próximos gastos.</small></label>
     <label class="field"><span>Descrição</span><input id="eDesc" value="${esc(e.desc)}" placeholder="${prep ? "Ex.: pneu dianteiro, kit relação, luvas" : "Ex.: posto em Salgueiro, pousada, almoço"}"></label>
     <div id="fuelBox" class="grid2" ${e.cat === "combustivel" ? "" : "hidden"}>
       <label class="field"><span>Litros</span><input id="eL" inputmode="decimal" value="${e.liters ?? ""}"></label>
@@ -443,12 +449,21 @@ function expForm(e, kind) {
     let autoAmt = isNew;
     const recalc = () => { const l = parseNum(L.value), p = parseNum(P.value); if (autoAmt && cat.value === "combustivel" && l && p) A.value = (l * p).toFixed(2); };
     L.addEventListener("input", recalc); P.addEventListener("input", recalc); A.addEventListener("input", () => { autoAmt = false; });
+    const syncNew = () => { sh.querySelector("#newCatBox").hidden = cat.value !== "outros"; };
+    cat.addEventListener("change", syncNew);
     cat.addEventListener("change", () => { sh.querySelector("#fuelBox").hidden = cat.value !== "combustivel"; if (isNew && shared) shared.checked = ["hospedagem", "passeio", "estacionamento"].includes(cat.value); });
     sh.querySelector("#expF").addEventListener("submit", ev => {
       ev.preventDefault(); const amt = parseNum(A.value);
       if (!amt || amt <= 0) { const er = sh.querySelector("#eErr"); er.hidden = false; er.textContent = "Informe o valor do gasto."; return; }
       const id = isNew ? newId() : e.id;
-      const data = { cat: cat.value, desc: sh.querySelector("#eDesc").value.trim(), amount: Math.round(amt * 100) / 100, date: sh.querySelector("#eDate").value,
+      let catKey = cat.value;
+      const newName = cat.value === "outros" ? sh.querySelector("#eNewCat").value.trim() : "";
+      if (newName) {
+        const existing = Object.entries(allCats()).find(([, l]) => l.toLowerCase() === newName.toLowerCase());
+        if (existing) catKey = existing[0];
+        else { catKey = "c_" + slug(newName); store.merge("riders/" + m, { cats: { [catKey]: newName } }); }
+      }
+      const data = { cat: catKey, desc: sh.querySelector("#eDesc").value.trim(), amount: Math.round(amt * 100) / 100, date: sh.querySelector("#eDate").value,
         liters: cat.value === "combustivel" ? parseNum(L.value) : null, ppl: cat.value === "combustivel" ? parseNum(P.value) : null, created: e.created || Date.now() };
       if (prep) {
         const vis = !!show?.checked;
@@ -480,10 +495,10 @@ let migrating = false;
 function migrateLegacy() {
   if (migrating) return; const m = me(); if (!m) return;
   if (ST.mode === "cloud" && (!ST.uid || ST.prepError)) return;
-  const old = expenses().filter(e => e.rider === m && !isTripCat(e.cat) && !e.fromPrep);
+  const old = expenses().filter(e => e.rider === m && (e.cat in LEGACY_PREP) && !e.fromPrep);
   if (!old.length) return; migrating = true;
   Promise.all(old.map(e => { const { id, rider, shared, ...rest } = e;
-    return store.putPrep(id, { ...rest, cat: LEGACY_PREP[e.cat] || (e.cat in PREP_CATS ? e.cat : "moto") }).then(() => store.remove("expenses", id)); }))
+    return store.putPrep(id, { ...rest, cat: LEGACY_PREP[e.cat] }).then(() => store.remove("expenses", id)); }))
     .then(() => toast(`${old.length} ${old.length === 1 ? "gasto foi" : "gastos foram"} para Meus gastos`))
     .finally(() => { migrating = false; });
 }

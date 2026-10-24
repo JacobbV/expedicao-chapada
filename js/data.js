@@ -207,18 +207,15 @@ export const ETAPAS = {
   petrolina_volta: { name: "Petrolina · volta", dayIndex: 5 },
 };
 
-// Gastos da viagem: os dois veem; cada gasto pode ser dividido ou não
-export const TRIP_CATS = {
+// Categorias de gasto: as mesmas nas duas abas (Gastos da viagem e Meus gastos)
+export const CATS = {
   combustivel: "Combustível", hospedagem: "Hospedagem", alimentacao: "Alimentação", pedagio: "Pedágio",
   passeio: "Passeios e guias", estacionamento: "Estacionamento", imprevisto: "Imprevistos na estrada",
-  conserto: "Manutenção / conserto", equipviagem: "Equipamentos", ferramviagem: "Ferramentas", outros: "Outros",
+  moto: "Moto: manutenção e conserto", equipamentos: "Equipamentos", protecao: "Equipamentos de proteção",
+  ferramentas: "Ferramentas", bagagem: "Bagagem", navegacao: "Navegação e estrada", roupas: "Roupas e higiene",
+  trilhas: "Trilhas e cachoeiras", fotos: "Fotos e comunicação", medicamentos: "Medicamentos", outros: "Outros",
 };
-// Preparação: privado, cada conta vê só os seus (mesmos grupos do checklist)
-export const PREP_CATS = {
-  moto: "Moto e manutenção", protecao: "Equipamentos de proteção", bagagem: "Bagagem", ferramentas: "Ferramentas e imprevistos",
-  navegacao: "Navegação e estrada", roupas: "Roupas e higiene", trilhas: "Trilhas e cachoeiras", fotos: "Fotos e comunicação",
-  outrosprep: "Outros",
-};
-// Categorias antigas (v1.0/1.1) que viram preparação
+// Nomes antigos (versões anteriores) apontam para a categoria atual
+export const CAT_ALIAS = { manutencao: "moto", conserto: "moto", equipamento: "protecao", equipviagem: "equipamentos", ferramviagem: "ferramentas", outrosprep: "outros" };
+// Gastos que ainda estavam na área compartilhada antes da v1.2.0 (vão para Meus gastos)
 export const LEGACY_PREP = { manutencao: "moto", equipamento: "protecao" };
-export const CATEGORIES = { ...TRIP_CATS, ...PREP_CATS, manutencao: "Moto e manutenção", equipamento: "Equipamentos de proteção" };
