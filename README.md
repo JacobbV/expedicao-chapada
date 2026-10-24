@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.7.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.7.1 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -93,7 +93,7 @@ As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada 
 
 **Categorias (as mesmas nas duas abas):** Combustível, Hospedagem, Alimentação, Pedágio, Passeios e guias, Estacionamento, Imprevistos na estrada, Moto: manutenção e conserto, Equipamentos, Equipamentos de proteção, Ferramentas, Bagagem, Navegação e estrada, Roupas e higiene, Trilhas e cachoeiras, Fotos e comunicação, Medicamentos e Outros.
 
-- **Categoria nova:** escolha **Outros** e preencha *Nova categoria*. Ela fica salva e aparece na lista para todos, nas duas abas. Se já existir uma com o mesmo nome, o app usa a existente.
+- **Categoria nova:** no fim da lista, escolha **+ Nova categoria…**. Logo abaixo aparece o campo para digitar o nome. Ela fica salva e aparece na lista para todos, nas duas abas. Se já existir uma com o mesmo nome, o app usa a existente.
 - **Exibir para o grupo:** cada gasto da preparação tem essa chave. Desligada (padrão), o gasto é privado (🔒). Ligada, ele também aparece em *Gastos da viagem* com o selo *exibido da preparação*. Desligar remove de lá na hora.
 - **Dividir entre os dois:** vale para os gastos da viagem. Só eles entram no **acerto de contas**. Os gastos exibidos da preparação não entram.
 - **Sua parte na viagem:** o que você pagou sozinho na viagem mais a sua metade dos divididos.
@@ -202,7 +202,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.7.0** | 24/10/2026 | **Categorias iguais nas duas abas** de gastos, com Equipamentos e Equipamentos de proteção separados e **Medicamentos** novo; em **Outros** dá para criar uma categoria, que fica salva para os próximos gastos; nomes antigos de categoria são convertidos sozinhos |
+| **1.7.1** | 24/10/2026 | Opção **+ Nova categoria…** separada do “Outros”, com o campo aparecendo só quando é escolhida; corrigidos campos que apareciam sem precisar (litros fora do combustível) |
+| 1.7.0 | 24/10/2026 | **Categorias iguais nas duas abas** de gastos, com Equipamentos e Equipamentos de proteção separados e **Medicamentos** novo; em **Outros** dá para criar uma categoria, que fica salva para os próximos gastos; nomes antigos de categoria são convertidos sozinhos |
 | 1.6.1 | 24/10/2026 | Tela de login mais limpa (sem texto técnico), com uma linha sobre o app, **Esqueci minha senha** (o Firebase manda o link por e-mail) e “Criado por Jacó · GitHub” no rodapé |
 | 1.6.0 | 24/10/2026 | **Redes e contatos por piloto**: cada um edita os próprios e eles aparecem separados no Sobre; admin pode **adicionar e remover pilotos** (nome, moto, consumo, tanque) e vê o ID do perfil para as regras |
 | 1.5.0 | 24/10/2026 | Papéis **admin** (Jacó) e **usuário** (Kaique): o usuário vê tudo e só altera o próprio checklist, perfil e gastos, com a regra do Firestore garantindo no servidor; Sobre ganha **Quem somos**, **Nossa história**, **Objetivos e sonhos** e **Sobre o app**, com textos editáveis pelo admin |

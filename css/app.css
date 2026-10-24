@@ -31,6 +31,7 @@
 :root[data-theme="light"]{color-scheme:light}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--f-body);-webkit-tap-highlight-color:transparent;min-height:100vh}
 h1,h2,h3{font-family:var(--f-display);line-height:1.05;margin:0;text-wrap:balance}

@@ -431,8 +431,8 @@ function expForm(e, kind) {
    <form id="expF" class="stack">
     <fieldset ${readonly ? "disabled" : ""} style="border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0">
     <div class="grid2">${prep ? "" : `<label class="field"><span>Quem pagou</span><select id="eRider">${riders.map(id => `<option value="${id}" ${e.rider === id ? "selected" : ""}>${esc(rname(id))}</option>`).join("")}</select></label>`}
-    <label class="field"><span>Categoria</span><select id="eCat">${Object.entries(catList).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
-    <label class="field" id="newCatBox" hidden><span>Nova categoria (opcional)</span><input id="eNewCat" maxlength="30" placeholder="Ex.: Lavagem da moto"><small>Ela fica salva e aparece na lista para os próximos gastos.</small></label>
+    <label class="field"><span>Categoria</span><select id="eCat">${Object.entries(catList).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}${othersPrep ? "" : `<option value="__new__">+ Nova categoria…</option>`}</select></label></div>
+    <label class="field" id="newCatBox" hidden><span>Nome da nova categoria</span><input id="eNewCat" maxlength="30" placeholder="Ex.: Lavagem da moto"><small>Ela fica salva e aparece na lista para os próximos gastos.</small></label>
     <label class="field"><span>Descrição</span><input id="eDesc" value="${esc(e.desc)}" placeholder="${prep ? "Ex.: pneu dianteiro, kit relação, luvas" : "Ex.: posto em Salgueiro, pousada, almoço"}"></label>
     <div id="fuelBox" class="grid2" ${e.cat === "combustivel" ? "" : "hidden"}>
       <label class="field"><span>Litros</span><input id="eL" inputmode="decimal" value="${e.liters ?? ""}"></label>
@@ -449,7 +449,7 @@ function expForm(e, kind) {
     let autoAmt = isNew;
     const recalc = () => { const l = parseNum(L.value), p = parseNum(P.value); if (autoAmt && cat.value === "combustivel" && l && p) A.value = (l * p).toFixed(2); };
     L.addEventListener("input", recalc); P.addEventListener("input", recalc); A.addEventListener("input", () => { autoAmt = false; });
-    const syncNew = () => { sh.querySelector("#newCatBox").hidden = cat.value !== "outros"; };
+    const syncNew = () => { const on = cat.value === "__new__"; sh.querySelector("#newCatBox").hidden = !on; if (on) sh.querySelector("#eNewCat").focus(); };
     cat.addEventListener("change", syncNew);
     cat.addEventListener("change", () => { sh.querySelector("#fuelBox").hidden = cat.value !== "combustivel"; if (isNew && shared) shared.checked = ["hospedagem", "passeio", "estacionamento"].includes(cat.value); });
     sh.querySelector("#expF").addEventListener("submit", ev => {
@@ -457,7 +457,8 @@ function expForm(e, kind) {
       if (!amt || amt <= 0) { const er = sh.querySelector("#eErr"); er.hidden = false; er.textContent = "Informe o valor do gasto."; return; }
       const id = isNew ? newId() : e.id;
       let catKey = cat.value;
-      const newName = cat.value === "outros" ? sh.querySelector("#eNewCat").value.trim() : "";
+      const newName = cat.value === "__new__" ? sh.querySelector("#eNewCat").value.trim() : "";
+      if (cat.value === "__new__" && !newName) { const er = sh.querySelector("#eErr"); er.hidden = false; er.textContent = "Digite o nome da nova categoria."; sh.querySelector("#eNewCat").focus(); return; }
       if (newName) {
         const existing = Object.entries(allCats()).find(([, l]) => l.toLowerCase() === newName.toLowerCase());
         if (existing) catKey = existing[0];
