@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.7.1 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.8.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -117,24 +117,24 @@ O progresso conta como resolvido o que está em **Pronto** ou **Não preciso**.
 
 ## Quem pode mexer em quê
 
-O **Jacó é o admin**. O **Kaique** (e qualquer outro piloto) é usuário: vê tudo e mexe só no que é dele. A regra do Firestore garante isso no servidor, não só na tela.
+A viagem é feita em conjunto: os pilotos editam juntos o que é da viagem. O **Jacó é o admin** e cuida só do que é pessoal dele e do app. A regra do Firestore garante isso no servidor, não só na tela.
 
-| Parte do app | Admin (Jacó) | Usuário (Kaique) |
+| Parte do app | Admin (Jacó) | Kaique |
 |---|---|---|
-| Roteiro, datas, inserir/remover dias | Edita | Só vê |
-| Mapa: criar, mover, editar e remover pontos | Edita | Só vê (pode ligar pontos e abrir no Google Maps) |
-| Hospedagem e pendências | Edita | Só vê |
-| Gasolina e fim das férias (Ajustes) | Edita | Só vê |
-| Sobre: textos | Edita | Só vê |
-| Redes e contatos | Os seus (e pode ajustar os dos outros) | Os seus |
-| Adicionar ou remover piloto | Sim | Não |
-| Próprio checklist | Edita o seu | Edita o seu |
-| Próprio perfil e moto (consumo, tanque) | Edita (e pode ajustar o do outro) | Edita o seu |
-| Gastos da viagem | Cria e altera os que pagou | Cria e altera os que pagou |
+| Roteiro, datas, inserir/remover dias, data de saída | Edita | Edita |
+| Mapa: criar, mover, editar e remover pontos | Edita | Edita |
+| Hospedagem (opções, escolhida, confirmada) | Edita | Edita |
+| Pendências (criar, marcar, remover) | Edita | Edita |
+| Preço da gasolina | Edita | Edita |
+| Sobre: Quem somos, Nossa história, Objetivos e sonhos | Edita | Edita |
+| Sobre: “Sobre o app” | Edita | Só vê |
+| Fim das férias | Edita (aviso de folga no Início) | Vê só o **prazo da viagem** e o motivo |
+| Checklist | O seu | O seu |
+| Perfil, moto e contatos | Os seus (e pode ajustar os dos outros) | Os seus |
+| Gastos da viagem | Os que pagou | Os que pagou |
 | Meus gastos (privado) | Só os seus | Só os seus |
-| Tema dia/noite | No próprio aparelho | No próprio aparelho |
-
-Para quem não é admin, os botões de edição somem e aparece o aviso “🔒 Só o Jacó (admin) altera…”.
+| Backup (.json) | Baixa | Baixa (com os próprios dados privados) |
+| Adicionar ou remover piloto | Sim | Não |
 
 ## Publicar e atualizar
 
@@ -161,8 +161,8 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 - **Gastos da preparação** ficam em `trips/chapada2027/private/<id da conta>/prep`. A regra deixa cada conta ler só a própria área, então nem o outro piloto consegue ver, mesmo mexendo no código.
 - **Configuração do app web:** [`firebase-config.js`](firebase-config.js). A `apiKey` pode ficar pública, porque quem protege os dados são as regras.
 
-### Atualizar as regras (a partir da v1.5.0)
-A v1.5.0 trouxe os papéis de admin e usuário. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
+### Atualizar as regras (a partir da v1.8.0)
+A v1.8.0 liberou a edição em conjunto da viagem e manteve só o pessoal com o admin. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
 
 ### Adicionar um piloto
 1. **No app (admin):** Menu ☰ → Pilotos e motos → **+ Adicionar piloto**. Preencha nome, moto, consumo e tanque. O app mostra o **ID do perfil** (ex.: `joaopedro`).
@@ -202,7 +202,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.7.1** | 24/10/2026 | Opção **+ Nova categoria…** separada do “Outros”, com o campo aparecendo só quando é escolhida; corrigidos campos que apareciam sem precisar (litros fora do combustível) |
+| **1.8.0** | 24/10/2026 | **Edição em conjunto**: o Kaique passa a editar roteiro, mapa, hospedagem, pendências, gasolina e os textos Quem somos, Nossa história e Objetivos; continuam só do admin as férias, “Sobre o app” e adicionar/remover pilotos. O aviso de férias aparece só para o admin; os outros veem o prazo da viagem e o motivo. Regras do Firestore atualizadas |
+| 1.7.1 | 24/10/2026 | Opção **+ Nova categoria…** separada do “Outros”, com o campo aparecendo só quando é escolhida; corrigidos campos que apareciam sem precisar (litros fora do combustível) |
 | 1.7.0 | 24/10/2026 | **Categorias iguais nas duas abas** de gastos, com Equipamentos e Equipamentos de proteção separados e **Medicamentos** novo; em **Outros** dá para criar uma categoria, que fica salva para os próximos gastos; nomes antigos de categoria são convertidos sozinhos |
 | 1.6.1 | 24/10/2026 | Tela de login mais limpa (sem texto técnico), com uma linha sobre o app, **Esqueci minha senha** (o Firebase manda o link por e-mail) e “Criado por Jacó · GitHub” no rodapé |
 | 1.6.0 | 24/10/2026 | **Redes e contatos por piloto**: cada um edita os próprios e eles aparecem separados no Sobre; admin pode **adicionar e remover pilotos** (nome, moto, consumo, tanque) e vê o ID do perfil para as regras |

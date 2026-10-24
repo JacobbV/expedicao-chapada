@@ -19,10 +19,21 @@ service cloud.firestore {
       return membro() && eu() == 'jaco';
     }
 
-    // Viagem (roteiro, datas, gasolina, Sobre): todos leem, só o admin altera
+    // Viagem (roteiro, datas, gasolina, textos do Sobre): os dois editam juntos.
+    // Só o admin muda as férias, o papel de admin e o texto/autor de “Sobre o app”.
+    function pessoalIntacto() {
+      let antes = resource.data;
+      let depois = request.resource.data;
+      return depois.get('feriasFim', null) == antes.get('feriasFim', null)
+        && depois.get('admin', null) == antes.get('admin', null)
+        && depois.get('about', {}).get('appinfo', null) == antes.get('about', {}).get('appinfo', null)
+        && depois.get('about', {}).get('author', null) == antes.get('about', {}).get('author', null);
+    }
     match /trips/{tripId} {
       allow read: if membro();
-      allow write: if admin();
+      allow create: if admin();
+      allow update: if admin() || (membro() && pessoalIntacto());
+      allow delete: if admin();
     }
     // Perfil do piloto e checklist: cada um altera o seu
     match /trips/{tripId}/riders/{rid} {
@@ -40,18 +51,15 @@ service cloud.firestore {
       allow update: if membro() && resource.data.rider == eu() && request.resource.data.rider == eu();
       allow delete: if membro() && resource.data.rider == eu();
     }
-    // Mapa, hospedagem e pendências: todos leem, só o admin altera
+    // Mapa, hospedagem e pendências: os dois editam juntos
     match /trips/{tripId}/points/{id} {
-      allow read: if membro();
-      allow write: if admin();
+      allow read, write: if membro();
     }
     match /trips/{tripId}/lodging/{id} {
-      allow read: if membro();
-      allow write: if admin();
+      allow read, write: if membro();
     }
     match /trips/{tripId}/meta/{id} {
-      allow read: if membro();
-      allow write: if admin();
+      allow read, write: if membro();
     }
     // Meus gastos: cada conta lê e escreve só a própria área
     match /trips/{tripId}/private/{uid}/{document=**} {

@@ -42,7 +42,7 @@ function me() {
 const canEdit = rid => ST.mode === "local" || rid === me();
 // Admin (Jacó) mexe no app geral; os outros só nos próprios dados
 const isAdmin = () => ST.mode === "local" || me() === (S.trip?.admin || "jaco");
-const ADMIN_ACTS = new Set(["newRider", "editStory", "editDay", "insDay", "shiftDates", "addDay", "newLodge", "editLodge", "lst", "newPend", "delPend", "newPt", "editAbout"]);
+const ADMIN_ACTS = new Set(["newRider"]); // o resto da viagem os dois editam juntos
 const adminNote = what => isAdmin() ? "" : `<p class="note">🔒 Só o ${esc(rname(S.trip?.admin || "jaco"))} (admin) altera ${what}. Você vê tudo para consulta.</p>`;
 
 /* ---------- cálculos ---------- */
@@ -195,7 +195,10 @@ function inicio() {
   else { big = `Expedição <span>concluída</span>`; sub = `${ds.length} dias · ${num(totalKm())} km planejados`; }
 
   const fim = S.trip.feriasFim; let margem = "";
-  if (fim) {
+  if (fim && !isAdmin()) {
+    const limite = addDays(fim, -1), folga = diffDays(last, fim) - 1;
+    margem = `<div class="${folga < 0 ? "warnbox" : "infobox"}"><b>Prazo da viagem:</b> precisamos estar em casa até ${wd(limite)} ${fmtD(limite)}, porque as férias do ${esc(rname(S.trip?.admin || "jaco"))} terminam em ${fmtD(fim)}. Pelo roteiro atual, a chegada é ${wd(last)} ${fmtD(last)}${folga < 0 ? `, ${-folga} ${folga === -1 ? "dia" : "dias"} depois do prazo` : ""}.</div>`;
+  } else if (fim) {
     const folga = diffDays(last, fim) - 1;
     margem = folga < 0
       ? `<div class="warnbox"><b>Passou das férias:</b> a chegada em casa é ${wd(last)} ${fmtD(last)} e as férias acabam ${fmtD(fim)}. Tire ${-folga} ${folga === -1 ? "dia" : "dias"} do roteiro ou adiante a saída.</div>`
@@ -252,18 +255,17 @@ function roteiro() {
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
-        <div class="row"><button class="btn sm adm" data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm adm" data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
+        <div class="row"><button class="btn sm " data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm " data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
       </div></details>`;
   }).join("");
   const first = ds[0], last = ds[ds.length - 1];
   return `
   <div class="between"><h2>Roteiro</h2><span class="muted num">${num(totalKm())} km</span></div>
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
-    <button class="btn sm adm" data-act="shiftDates">Mudar data de saída</button></div>
+    <button class="btn sm " data-act="shiftDates">Mudar data de saída</button></div>
   <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
-  ${adminNote("o roteiro")}
   <div class="stack">${cards}</div>
-  <button class="btn block adm" data-act="addDay">+ Adicionar dia de folga</button>`;
+  <button class="btn block " data-act="addDay">+ Adicionar dia de folga</button>`;
 }
 function dayForm(d) {
   const opts = Object.entries(CIRCUITS).map(([k, c]) => `<option value="${k}" ${d.circ === k ? "selected" : ""}>${esc(c.name)}</option>`).join("");
@@ -548,15 +550,15 @@ function hospedagem() {
       <div class="between"><span class="name">${esc(l.name)}</span>${l.status === "confirmada" ? `<span class="chip s-ok">confirmada</span>` : l.status === "escolhida" ? `<span class="chip s-pend">escolhida · falta reservar</span>` : `<span class="chip s-mute">opção</span>`}</div>
       <dl class="kv">${l.price ? `<dt>Valor</dt><dd class="num">${brl(l.price)}${l.priceNote ? ` <span class="muted">· ${esc(l.priceNote)}</span>` : ""}</dd>` : ""}
         ${l.address ? `<dt>Endereço</dt><dd>${esc(l.address)}</dd>` : ""}${l.parking ? `<dt>Estacion.</dt><dd>${esc(l.parking)}</dd>` : ""}${l.notes ? `<dt>Notas</dt><dd>${esc(l.notes)}</dd>` : ""}</dl>
-      <div class="row">${l.link ? `<a class="btn sm" href="${esc(l.link)}" target="_blank" rel="noopener">Abrir link</a>` : ""}<button class="btn sm adm" data-act="editLodge" data-id="${l.id}">Editar</button>
-        <div class="seg adm" role="group">${[["opcao", "Opção"], ["escolhida", "Escolhida"], ["confirmada", "Confirmada"]].map(([s, t]) => `<button data-act="lst" data-id="${l.id}" data-s="${s}" aria-pressed="${l.status === s}">${t}</button>`).join("")}</div></div></div>`;
+      <div class="row">${l.link ? `<a class="btn sm" href="${esc(l.link)}" target="_blank" rel="noopener">Abrir link</a>` : ""}<button class="btn sm" data-act="editLodge" data-id="${l.id}">Editar</button>
+        <div class="seg" role="group">${[["opcao", "Opção"], ["escolhida", "Escolhida"], ["confirmada", "Confirmada"]].map(([s, t]) => `<button data-act="lst" data-id="${l.id}" data-s="${s}" aria-pressed="${l.status === s}">${t}</button>`).join("")}</div></div></div>`;
     return `<div class="stack"><div class="between"><h3>${esc(et.name)}</h3><span class="muted num" style="font-size:.85rem">${d ? `${fmtD(d.date)} → ${checkout ? fmtD(checkout.date) : "?"}${nights ? ` · ${nights} ${nights === 1 ? "noite" : "noites"}` : ""}` : ""}</span></div>
       ${chosen.map(card).join("")}
       ${chosen.length && opts.length ? `<details><summary class="muted" style="cursor:pointer;font-weight:700">Outras opções (${opts.length})</summary><div class="stack" style="margin-top:8px">${opts.map(card).join("")}</div></details>` : opts.map(card).join("")}
       ${!ls.length ? `<p class="muted">Nenhuma opção cadastrada.</p>` : ""}
-      <button class="btn sm adm" data-act="newLodge" data-etapa="${k}">+ Opção em ${esc(et.name.split(" ·")[0])}</button></div>`;
+      <button class="btn sm " data-act="newLodge" data-etapa="${k}">+ Opção em ${esc(et.name.split(" ·")[0])}</button></div>`;
   }).join("");
-  return `${backLink}<h2>Hospedagem</h2><p class="note">Cadastre as opções. Ao marcar uma como escolhida ou confirmada, ela sobe para o topo e as outras ficam guardadas em “Outras opções”.</p>${adminNote("a hospedagem")}${sec}`;
+  return `${backLink}<h2>Hospedagem</h2><p class="note">Cadastre as opções. Ao marcar uma como escolhida ou confirmada, ela sobe para o topo e as outras ficam guardadas em “Outras opções”.</p>${sec}`;
 }
 function lodgeForm(l, etapa) {
   const isNew = !l; l = l || { etapa, name: "", price: "", priceNote: "", address: "", link: "", parking: "", notes: "", status: "opcao" };
@@ -587,12 +589,11 @@ function pendencias() {
   const col = p => p === "Segurança" ? "var(--bad)" : p === "Logística" ? "var(--warn)" : "var(--muted)";
   const open = all.filter(p => !done[p[0]]).length;
   return `${backLink}<div class="between"><h2>Pendências</h2><span class="muted">${open} de ${all.length} abertas</span></div>
-  ${adminNote("as pendências")}
   ${prios.map(pr => { const items = all.filter(p => p[1] === pr); if (!items.length) return "";
     return `<div class="stack"><div class="prio" style="color:${col(pr)}">${pr.toUpperCase()}</div>${items.map(([id, , t, d, isC]) => `
-      <label class="pitem${done[id] ? " done" : ""}" for="pd-${id}"><input type="checkbox" id="pd-${id}" data-act="pd" data-id="${id}" ${done[id] ? "checked" : ""} ${isAdmin() ? "" : "disabled"}>
-      <div><div class="pt">${esc(t)}</div>${d ? `<div class="pd">${esc(d)}</div>` : ""}</div>${isC ? `<button class="x adm" data-act="delPend" data-id="${id}" aria-label="Remover">×</button>` : "<span></span>"}</label>`).join("")}</div>`; }).join("")}
-  <button class="btn block adm" data-act="newPend">+ Nova pendência</button>`;
+      <label class="pitem${done[id] ? " done" : ""}" for="pd-${id}"><input type="checkbox" id="pd-${id}" data-act="pd" data-id="${id}" ${done[id] ? "checked" : ""} >
+      <div><div class="pt">${esc(t)}</div>${d ? `<div class="pd">${esc(d)}</div>` : ""}</div>${isC ? `<button class="x" data-act="delPend" data-id="${id}" aria-label="Remover">×</button>` : "<span></span>"}</label>`).join("")}</div>`; }).join("")}
+  <button class="btn block " data-act="newPend">+ Nova pendência</button>`;
 }
 function pendForm() {
   openSheet(`<h3>Nova pendência</h3><form id="pF" class="stack">
@@ -645,11 +646,10 @@ function ajustes() {
   const local = ST.mode === "local";
   return `${backLink}<h2>Ajustes</h2>
   <div class="card stack"><h3>Aparência</h3>${themeSeg()}<p class="muted" style="font-size:.85rem">Automático segue o tema do celular ou do navegador. A escolha vale só para este aparelho.</p></div>
-  ${isAdmin() ? "" : `<div class="card stack"><h3>Viagem</h3><dl class="kv"><dt>Gasolina</dt><dd class="num">${brl(S.trip.gasPrice)}/L</dd><dt>Fim das férias</dt><dd>${S.trip.feriasFim ? fmtD(S.trip.feriasFim) : "—"}</dd></dl>${adminNote("esses valores")}</div>`}
-  <form class="card stack adm" id="setF">
+  <form class="card stack" id="setF">
     <h3>Viagem</h3>
     <div class="grid2"><label class="field"><span>Gasolina (R$/L)</span><input id="sGas" inputmode="decimal" value="${S.trip.gasPrice ?? ""}"><small>Usado nas estimativas e como padrão ao abastecer</small></label>
-    <label class="field"><span>Fim das férias</span><input id="sFer" type="date" value="${S.trip.feriasFim || ""}"></label></div>
+    ${isAdmin() ? `<label class="field"><span>Fim das suas férias</span><input id="sFer" type="date" value="${S.trip.feriasFim || ""}"><small>Só você altera. Para os outros pilotos aparece só o prazo da viagem.</small></label>` : ""}</div>
     <button class="btn primary" style="justify-self:start">Salvar ajustes</button>
   </form>
   <div class="card stack"><h3>Sincronização</h3>
@@ -701,9 +701,9 @@ function listHTML() {
 }
 function setBanner(html) { const b = $("#mapBanner"); if (b) b.innerHTML = html ? `<div class="mapbanner"><span>${html}</span><button class="btn sm" data-act="cancelPlace">Cancelar</button></div>` : ""; }
 function mapa() {
-  return `<div class="between"><h2>Mapa</h2><div class="row"><button class="btn sm" data-act="linkToggle" id="linkBtn" aria-pressed="${linkOn}">${linkOn ? "✓ Pontos ligados" : "Ligar pontos"}</button><button class="btn sm adm" data-act="newPt">+ Ponto</button></div></div>
+  return `<div class="between"><h2>Mapa</h2><div class="row"><button class="btn sm" data-act="linkToggle" id="linkBtn" aria-pressed="${linkOn}">${linkOn ? "✓ Pontos ligados" : "Ligar pontos"}</button><button class="btn sm" data-act="newPt">+ Ponto</button></div></div>
   <div class="filters" id="mapChips">${chipsHTML()}</div>
-  <div id="mapBanner"></div>${adminNote("os pontos do mapa")}
+  <div id="mapBanner"></div>
   <div id="map" class="mapbox"><p class="muted" style="padding:16px">Carregando o mapa…</p></div>
   <p class="note">Toque num pin para ver detalhes e abrir no Google Maps. Segure o dedo no mapa (ou use “+ Ponto”) para criar um ponto. O mapa só aparece sem internet nas áreas já abertas antes; para navegar sem sinal, baixe a região no Google Maps offline.</p>
   <div id="routeBox"></div>
@@ -719,7 +719,7 @@ function mountMap() {
     const el = $("#map"); if (route !== "mapa" || !el) return;
     if (mapView) { try { mapView.map.remove(); } catch (e) {} }
     el.innerHTML = "";
-    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => { if (isAdmin()) pointForm(null, ll); } });
+    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll) });
     mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
     routeKey = ""; updateRoutes();
     mapView.invalidate();
@@ -735,8 +735,8 @@ function pointSheet(id) {
       ${has ? `<dt>Posição</dt><dd class="num">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</dd>` : `<dt>Posição</dt><dd><span class="chip s-pend">sem posição</span></dd>`}
       ${p.src ? `<dt>Fonte</dt><dd>${esc(p.src)}</dd>` : ""}</dl>
     ${p.note ? `<p class="note">${esc(p.note)}</p>` : ""}
-    <div class="actions">${has ? `<a class="btn primary" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a>` : (isAdmin() ? `<button class="btn primary" data-s="place">Marcar no mapa</button>` : `<span class="chip s-pend">sem posição</span>`)}</div>
-    <div class="actions adm"><button class="btn" data-s="edit">Editar</button>${has ? `<button class="btn" data-s="move">Mover pin</button>` : ""}<button class="btn danger" data-s="del">Remover</button></div>`, sh => {
+    <div class="actions">${has ? `<a class="btn primary" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a>` : `<button class="btn primary" data-s="place">Marcar no mapa</button>`}</div>
+    <div class="actions"><button class="btn" data-s="edit">Editar</button>${has ? `<button class="btn" data-s="move">Mover pin</button>` : ""}<button class="btn danger" data-s="del">Remover</button></div>`, sh => {
     let armed = false;
     sh.addEventListener("click", e => {
       const b = e.target.closest("[data-s]"); if (!b) return; const a = b.dataset.s;
@@ -890,7 +890,7 @@ function sobre() {
     <div class="sub">Versão ${esc(self.APP_VERSION || "?")} · Catolé do Rocha-PB → Lençóis-BA · janeiro de 2027</div></div>
   ${STORY.filter(([k]) => (a[k] || "").trim()).map(([k, t]) => `<div class="card stack story"><h3>${t}</h3>${esc(a[k]).split(/\n+/).map(par => `<p>${par}</p>`).join("")}
     ${k === "nos" ? `<div class="pilots">${riderIds().map(id => `<div class="pilot"><b>${esc(rname(id))}</b><small>${esc(S.riders[id].moto || "")}</small></div>`).join("")}</div>` : ""}</div>`).join("")}
-  ${canEditAbout() ? `<button class="btn sm" data-act="editStory" style="justify-self:start">Editar textos</button>` : ""}
+  <button class="btn sm" data-act="editStory" style="justify-self:start">Editar textos</button>
   <h3 style="margin-top:6px">Redes e contatos</h3>
   ${riderIds().map(id => { const l = socialLinks(id);
     return `<div class="card stack"><div class="between"><h3>${esc(rname(id))}</h3><span class="muted" style="font-size:.85rem">${esc(S.riders[id].moto || "")}</span></div>
@@ -915,11 +915,12 @@ function socialForm(id) {
 
 function storyForm() {
   const a = about();
-  openSheet(`<h3>Textos do Sobre</h3><p class="muted" style="font-size:.85rem">Todos veem; só o admin edita. Deixe um campo vazio para esconder a seção.</p>
-    <form id="stF" class="stack">${STORY.map(([k, t]) => `<label class="field"><span>${t}</span><textarea id="st${k}" rows="4">${esc(a[k] || "")}</textarea></label>`).join("")}
+  const own = k => k === "appinfo" && !isAdmin(); // “Sobre o app” é do criador
+  openSheet(`<h3>Textos do Sobre</h3><p class="muted" style="font-size:.85rem">Quem somos, história e objetivos são dos dois. “Sobre o app” só o ${esc(rname(S.trip?.admin || "jaco"))} edita. Deixe um campo vazio para esconder a seção.</p>
+    <form id="stF" class="stack">${STORY.map(([k, t]) => `<label class="field"><span>${t}${own(k) ? " 🔒" : ""}</span><textarea id="st${k}" rows="4" ${own(k) ? "disabled" : ""}>${esc(a[k] || "")}</textarea></label>`).join("")}
     <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
     sh.querySelector("#stF").addEventListener("submit", ev => { ev.preventDefault();
-      const out = {}; STORY.forEach(([k]) => out[k] = sh.querySelector("#st" + k).value.trim());
+      const out = {}; STORY.forEach(([k]) => { if (!own(k)) out[k] = sh.querySelector("#st" + k).value.trim(); });
       store.merge("trip", { about: out }); closeSheet(); toast("Textos salvos"); });
   });
 }
@@ -978,12 +979,14 @@ $("#view").addEventListener("toggle", e => { if (e.target.id === "clLegend") { t
 $("#view").addEventListener("toggle", e => { const d = e.target.closest?.("[data-day]"); if (!d) return; d.open ? openDays.add(d.dataset.day) : openDays.delete(d.dataset.day); }, true);
 $("#view").addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.act === "pd" && isAdmin()) store.merge("meta/pend", { done: { [t.dataset.id]: t.checked ? true : null } });
+  if (t.dataset.act === "pd") store.merge("meta/pend", { done: { [t.dataset.id]: t.checked ? true : null } });
   if (t.id === "impFile" && t.files[0]) { const r = new FileReader(); r.onload = () => { try { store.importJSON(r.result); toast("Backup restaurado"); } catch (er) { toast("Arquivo inválido: " + er.message); } }; r.readAsText(t.files[0]); }
 });
 $("#view").addEventListener("submit", e => {
   if (e.target.id !== "setF") return; e.preventDefault();
-  store.merge("trip", { gasPrice: parseNum($("#sGas").value) ?? S.trip.gasPrice, feriasFim: $("#sFer").value || null }); toast("Ajustes salvos");
+  const patch = { gasPrice: parseNum($("#sGas").value) ?? S.trip.gasPrice };
+  if (isAdmin() && $("#sFer")) patch.feriasFim = $("#sFer").value || null;
+  store.merge("trip", patch); toast("Ajustes salvos");
 });
 
 /* ---------- início ---------- */
