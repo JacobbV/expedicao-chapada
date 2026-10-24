@@ -7,6 +7,8 @@ let S = null, ST = null;
 let route = "inicio";
 let viewRider = null, clFilter = "all", expFilter = "todos", mapFilter = "all";
 let mapView = null, gastosTab = "trip";
+let linkOn = (() => { try { return localStorage.getItem("linkOn") === "1"; } catch (e) { return false; } })();
+let routeKey = "", routeSeq = 0;
 const openDays = new Set();
 
 /* ---------- utilitários ---------- */
@@ -612,16 +614,18 @@ function listHTML() {
 }
 function setBanner(html) { const b = $("#mapBanner"); if (b) b.innerHTML = html ? `<div class="mapbanner"><span>${html}</span><button class="btn sm" data-act="cancelPlace">Cancelar</button></div>` : ""; }
 function mapa() {
-  return `<div class="between"><h2>Mapa</h2><button class="btn sm" data-act="newPt">+ Ponto</button></div>
+  return `<div class="between"><h2>Mapa</h2><div class="row"><button class="btn sm" data-act="linkToggle" id="linkBtn" aria-pressed="${linkOn}">${linkOn ? "✓ Pontos ligados" : "Ligar pontos"}</button><button class="btn sm" data-act="newPt">+ Ponto</button></div></div>
   <div class="filters" id="mapChips">${chipsHTML()}</div>
   <div id="mapBanner"></div>
   <div id="map" class="mapbox"><p class="muted" style="padding:16px">Carregando o mapa…</p></div>
   <p class="note">Toque num pin para ver detalhes e abrir no Google Maps. Segure o dedo no mapa (ou use “+ Ponto”) para criar um ponto. O mapa só aparece sem internet nas áreas já abertas antes; para navegar sem sinal, baixe a região no Google Maps offline.</p>
+  <div id="routeBox"></div>
   <div id="mapList" class="stack">${listHTML()}</div>`;
 }
 function updateMapParts() {
   const c = $("#mapChips"), l = $("#mapList"); if (c) c.innerHTML = chipsHTML(); if (l) l.innerHTML = listHTML();
   mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
+  updateRoutes();
 }
 function mountMap() {
   ensureLeaflet().then(L => {
@@ -630,6 +634,7 @@ function mountMap() {
     el.innerHTML = "";
     mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll) });
     mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
+    routeKey = ""; updateRoutes();
     mapView.invalidate();
   }).catch(err => { const el = $("#map"); if (el) el.innerHTML = `<p class="err" style="padding:16px">${esc(err.message)}</p>`; });
 }
@@ -688,6 +693,59 @@ function pointForm(p, ll) {
     });
   });
 }
+/* Ligar pontos: rota de cada circuito saindo e voltando à pousada */
+const cssColor = v => { const m = /var\((--[\w-]+)\)/.exec(v); return m ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || "#666" : v; };
+function routePlans() {
+  const ps = allPoints().filter(p => p.lat != null && p.lng != null);
+  const base = S.points?.pousada && S.points.pousada.lat != null ? { lat: S.points.pousada.lat, lng: S.points.pousada.lng } : null;
+  const circs = mapFilter === "all" ? CIRC_ORDER.filter(c => c !== "estrada") : [mapFilter];
+  return circs.map(c => {
+    const stops = ps.filter(p => p.circ === c && p.id !== "pousada").sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+    if (!stops.length) return null;
+    const missing = allPoints().filter(p => p.circ === c && p.lat == null).length;
+    let path;
+    if (c === "estrada") path = base ? [...stops, base] : stops;                 // Catolé → Petrolina → Lençóis
+    else path = base ? [base, ...stops, base] : stops;                            // pousada → pontos → pousada
+    if (path.length < 2) return null;
+    return { circ: c, foot: c === "chegada", path: path.map(p => [p.lat, p.lng]), missing };
+  }).filter(Boolean);
+}
+const lineKm = path => path.slice(1).reduce((s, p, i) => s + distKm({ lat: path[i][0], lng: path[i][1] }, { lat: p[0], lng: p[1] }), 0);
+async function roadRoute(path) {
+  const key = "osrm:" + path.map(p => p[0].toFixed(5) + "," + p[1].toFixed(5)).join(";");
+  try { const c = JSON.parse(localStorage.getItem(key) || "null"); if (c) return c; } catch (e) {}
+  const coords = path.map(p => `${p[1]},${p[0]}`).join(";");
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`, { signal: ctl.signal });
+    const j = await r.json(); if (j.code !== "Ok" || !j.routes?.length) return null;
+    const out = { km: j.routes[0].distance / 1000, line: j.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]) };
+    try { localStorage.setItem(key, JSON.stringify(out)); } catch (e) {}
+    return out;
+  } catch (e) { return null; } finally { clearTimeout(t); }
+}
+async function updateRoutes() {
+  const box = $("#routeBox"); if (!mapView || !box) return;
+  if (!linkOn) { mapView.setRoutes(null); box.innerHTML = ""; routeKey = ""; return; }
+  const plans = routePlans();
+  const key = mapFilter + "|" + JSON.stringify(plans.map(p => p.path));
+  if (key === routeKey) return; routeKey = key; const seq = ++routeSeq;
+  if (!plans.length) { mapView.setRoutes(null); box.innerHTML = `<div class="card"><p class="muted">Sem pontos com posição para ligar neste filtro.</p></div>`; return; }
+  // primeiro desenha em linha reta; depois troca pela estrada quando a rota chegar
+  const rows = plans.map(p => ({ ...p, km: lineKm(p.path), road: false, line: p.path }));
+  const draw = () => {
+    if (seq !== routeSeq) return;
+    mapView.setRoutes(rows.map(r => ({ latlngs: r.line, color: cssColor(pcolor(r.circ)), dashed: !r.road })));
+    const total = rows.reduce((s, r) => s + r.km, 0);
+    box.innerHTML = `<div class="card stack"><div class="between"><h3>Distâncias</h3>${rows.length > 1 ? `<span class="num" style="font-weight:700">Total ≈ ${num(total)} km</span>` : ""}</div>
+      <div class="tablebox"><table><tbody>${rows.map(r => `<tr><td><i class="rdot" style="background:${pcolor(r.circ)}"></i>${esc(CIRC_BASE[r.circ] || r.circ)}</td>
+        <td class="r num"><b>≈ ${num(r.km, r.km < 10 ? 1 : 0)} km</b></td><td class="muted" style="font-size:.8rem">${r.road ? "pela estrada" : r.foot ? "a pé, em linha reta" : "em linha reta"}${r.missing ? ` · ${r.missing} sem posição` : ""}</td></tr>`).join("")}</tbody></table></div>
+      <p class="note">${mapFilter === "estrada" ? "Catolé → Petrolina → pousada." : "Cada circuito sai e volta para a pousada, na ordem dos números."} Linha cheia = rota pela estrada (OpenStreetMap/OSRM); tracejada = linha reta, usada a pé ou quando não há internet. Pontos de trilha contam até a estrada mais próxima. É estimativa: confira antes de ir.</p></div>`;
+  };
+  draw();
+  await Promise.all(rows.map(async r => { if (r.foot) return; const rr = await roadRoute(r.path); if (rr) { r.km = rr.km; r.line = rr.line; r.road = true; } }));
+  draw();
+}
 function dayPoints(d) {
   const ps = allPoints().filter(p => p.circ === d.circ); if (!ps.length) return "";
   return `<div><div class="label">No mapa</div><div class="seq" style="margin-top:4px">${ps.map(p => `<span>${p.order ? p.order + ". " : ""}${esc(p.name)}</span>`).join("")}</div>
@@ -714,6 +772,9 @@ $("#view").addEventListener("click", e => {
   else if (act === "mapf") { mapFilter = b.dataset.v; render(); }
   else if (act === "ptOpen") { const p = S.points?.[id]; if (!p) return; if (p.lat != null && mapView) mapView.focus(id); pointSheet(id); }
   else if (act === "newPt") pointForm(null, null);
+  else if (act === "linkToggle") { linkOn = !linkOn; try { localStorage.setItem("linkOn", linkOn ? "1" : "0"); } catch (er) {}
+    const lb = $("#linkBtn"); if (lb) { lb.setAttribute("aria-pressed", linkOn); lb.textContent = linkOn ? "✓ Pontos ligados" : "Ligar pontos"; }
+    routeKey = ""; updateRoutes(); }
   else if (act === "cancelPlace") { mapView?.cancelPlacing(); setBanner(""); }
   else if (act === "vr") { viewRider = b.dataset.v; render(); }
   else if (act === "ef") { expFilter = b.dataset.v; render(); }

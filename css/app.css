@@ -231,3 +231,5 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 .drawer .menu a{font-size:.95rem}
 .back{appearance:none;border:0;background:none;padding:0;cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.drawer{animation:slidein .2s ease-out}@keyframes slidein{from{transform:translateX(40px);opacity:.6}to{transform:none;opacity:1}}}
+.rdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:0}
+#linkBtn[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}

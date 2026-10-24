@@ -93,5 +93,14 @@ export class MapView {
     m.once("dragend", () => { m.dragging.disable(); this.dragId = null; const ll = m.getLatLng(); done(ll); });
     return true;
   }
+  // routes: [{ latlngs: [[lat,lng],…], color: "#hex", dashed: bool }]
+  setRoutes(routes) {
+    if (this.routeLayer) { this.routeLayer.remove(); this.routeLayer = null; }
+    if (!routes || !routes.length) return;
+    const L = this.L;
+    this.routeLayer = L.layerGroup(routes.map(r => L.polyline(r.latlngs, {
+      color: r.color, weight: r.dashed ? 3 : 5, opacity: .85, dashArray: r.dashed ? "6 8" : null, interactive: false,
+    }))).addTo(this.map);
+  }
   invalidate() { setTimeout(() => this.map.invalidateSize(), 60); }
 }

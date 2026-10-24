@@ -2,7 +2,17 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/>
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.3.0 ([histórico](#histórico-de-versões))
+
+## Sumário
+- [O que tem](#o-que-tem)
+- [Mapa](#mapa)
+- [Gastos](#gastos)
+- [Checklist](#checklist)
+- [Publicar e atualizar](#publicar-e-atualizar)
+- [Sincronização (Firebase)](#sincronização-firebase)
+- [Estrutura](#estrutura)
+- [Histórico de versões](#histórico-de-versões)
 
 ## O que tem
 
@@ -10,9 +20,9 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 |---|---|
 | **Início** | Contagem regressiva, folga até o fim das férias (avisa se o roteiro passar da data), próximo dia, progresso do checklist dos dois, combustível previsto e acerto de contas |
 | **Roteiro** | Dias com o circuito de cada um, em cores. Permite editar data, saída, km e observações, trocar o circuito de um dia, **inserir um dia depois de outro** (as datas seguintes avançam) ou **remover** (as seguintes recuam), mudar a data de saída de tudo e abrir os pontos do dia no mapa |
-| **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo e filtrar por circuito |
+| **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo, filtrar por circuito e **ligar os pontos** para ver os km de cada circuito |
 | **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
-| **Gastos** | Duas abas. **Gastos da viagem** são vistos pelos dois (combustível, hospedagem, alimentação, pedágio, passeios e guias, estacionamento, imprevistos), e cada gasto pode ser dividido ou não; os divididos entram no acerto de contas. **Minha preparação** é **privada**: cada conta vê só os seus gastos (moto e manutenção, proteção, bagagem, ferramentas, navegação, roupas, trilhas, fotos) |
+| **Gastos** | Duas abas: **Gastos da viagem** (os dois veem; cada gasto pode ser dividido) e **Minha preparação** (privada, cada conta vê só os seus). Detalhes em [Gastos](#gastos) |
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
@@ -40,6 +50,21 @@ Os ícones dentro do pin indicam o tipo de lugar: pousada (casa), cachoeira ou p
 - **Pontos sem posição:** aparecem na lista com o selo *sem posição*. Toque no ponto e use **Marcar no mapa**.
 - **Tudo sincroniza:** o que um muda aparece no celular do outro.
 
+### Ligar pontos
+O botão **Ligar pontos** desenha cada circuito saindo da pousada, passando pelos pontos na ordem dos números e voltando para a pousada. Embaixo do mapa aparece um quadro com os km de cada circuito e o total.
+
+| Filtro | O que liga |
+|---|---|
+| Todos | Cada circuito separado (chegada, 1, 2, 3 e plano B), com o total somado |
+| Um circuito | Só aquele circuito: pousada → pontos → pousada |
+| Estrada | Catolé do Rocha → Petrolina → pousada |
+
+- **Linha cheia** = rota **pela estrada**, calculada pelo serviço público OSRM com dados do OpenStreetMap. Precisa de internet na primeira vez; depois o resultado fica guardado no celular.
+- **Linha tracejada** = **linha reta**. É usada na chegada (a pé) e quando não há internet.
+- Pontos que só se alcançam por trilha (ex.: Fumaça por cima) contam até a estrada mais próxima, então a trilha a pé não entra na conta.
+- Pontos *sem posição* ficam de fora e aparecem avisados no quadro.
+- É **estimativa**: estradas de terra e trechos novos podem estar diferentes no OpenStreetMap.
+
 ### Offline
 O mapa usa o OpenStreetMap. Sem internet, ele mostra só as áreas que **já foram abertas antes** naquele celular (o app guarda até cerca de 3.000 pedaços de mapa). Antes da viagem, abra o mapa com Wi-Fi e passeie pelo zoom de Lençóis, Capão e da rota. Para **navegar** sem sinal, baixe a região no **Google Maps offline**: o botão de cada ponto abre direto lá.
 
@@ -55,19 +80,45 @@ As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada 
 | Gruta da Lapa Doce, Fazenda Pratinha | Showcaves.com |
 | **Sem posição ainda:** Mirante de Lençóis, Povoado do Remanso, embarque no Marimbus, piscinas do Rio Roncador | Marcar no app quando confirmar |
 
+## Gastos
+
+| Aba | Quem vê | Categorias | Divide? |
+|---|---|---|---|
+| **Gastos da viagem** | Os dois | Combustível, Hospedagem, Alimentação, Pedágio, Passeios e guias, Estacionamento, Imprevistos na estrada, Manutenção / conserto, Equipamentos, Ferramentas, Outros | Sim, marcando **Dividir entre os dois** |
+| **Minha preparação** | Só a própria conta | Moto e manutenção, Equipamentos de proteção, Bagagem, Ferramentas e imprevistos, Navegação e estrada, Roupas e higiene, Trilhas e cachoeiras, Fotos e comunicação, Outros | Não |
+
+- **Acerto de contas:** soma só os gastos da viagem marcados como divididos, mostra quanto cabe a cada um e quem deve a quem.
+- **Sua parte na viagem:** o que você pagou sozinho mais a sua metade dos divididos.
+- **Combustível:** informando litros e R$/L, o valor é calculado sozinho. O preço padrão vem de Ajustes.
+- **Gastos antigos:** gastos de manutenção ou equipamento lançados antes da v1.2.0 foram movidos sozinhos para *Minha preparação* de quem pagou.
+
+## Checklist
+
+Um checklist por piloto. Os dois veem os dois, e cada um só altera o seu.
+
+| Status | Quer dizer |
+|---|---|
+| **Pronto** | Tenho e está em condições, ou já comprei, consertei ou reservei |
+| **Providenciar** | Falta comprar, conseguir, reservar ou consertar |
+| **Revisar** | Tenho, mas preciso conferir antes de ir |
+| **Não preciso** | Decidi não levar ou não fazer |
+| **Avaliar** | Ainda não decidi (é como começa o checklist de quem não preencheu) |
+
+O progresso conta como resolvido o que está em **Pronto** ou **Não preciso**.
+
 ## Publicar e atualizar
 
 Hospedagem: **GitHub Pages**, em Settings → Pages → Deploy from a branch → `main` / `(root)`.
 
 Para cada atualização:
-1. Aumente a versão em [`js/version.js`](js/version.js), por exemplo `1.1.0` → `1.1.1`. Esse é o único lugar da versão: o `sw.js` e a tela de Ajustes leem dela. Sem trocar a versão, os celulares continuam abrindo a versão antiga guardada.
+1. Aumente a versão em [`js/version.js`](js/version.js), por exemplo `1.3.0` → `1.3.1`, e acrescente uma linha no [histórico](#histórico-de-versões). Esse é o único lugar da versão: o `sw.js` e a tela de Ajustes leem dela. Sem trocar a versão, os celulares continuam abrindo a versão antiga guardada.
 2. No terminal:
    ```powershell
    git add .
    git commit -m "feat: o que mudou"
    git push
    ```
-3. Em 1–2 minutos o site atualiza. No celular, feche e abra o app com internet.
+3. Em 1–2 minutos o site atualiza. Com internet, o app sempre busca os arquivos novos (desde a v1.2.1). No celular, feche e abra o app. A versão aparece no rodapé do menu ☰.
 
 No celular: abra o link no Chrome → menu ⋮ → **Instalar app** (no iPhone: Compartilhar → *Adicionar à Tela de Início*).
 
@@ -106,10 +157,24 @@ js/map.js             mapa (Leaflet + OpenStreetMap) e desenho dos pins
 js/app.js             telas e interações
 firebase-config.js    configuração do Firebase (null = modo local)
 firestore.rules       modelo das regras do Firestore
-sw.js                 service worker (offline, cache de mapa)
+sw.js                 service worker (offline, cache do app e do mapa)
 manifest.webmanifest  instalação como app
 icons/                ícones
 ```
+
+## Histórico de versões
+
+| Versão | Data | O que mudou |
+|---|---|---|
+| **1.3.0** | 24/10/2026 | Botão **Ligar pontos** no mapa: liga cada circuito saindo e voltando à pousada e mostra os km por circuito e o total (pela estrada via OSRM, ou em linha reta a pé/sem internet). README com sumário, seções de Gastos e Checklist e este histórico |
+| 1.2.2 | 24/10/2026 | Gastos da viagem ganham **Manutenção / conserto**, **Equipamentos** e **Ferramentas**; preparação ganha **Outros**; o formulário diz em qual aba o gasto entra |
+| 1.2.1 | 24/10/2026 | Menu **☰** no topo (Hospedagem, Pendências, Pilotos, Ajustes) no lugar do “Mais” embaixo; barra de baixo com 5 itens; com internet o app sempre busca os arquivos novos, o que evita versões misturadas |
+| 1.2.0 | 24/10/2026 | Gastos em duas abas: **Gastos da viagem** (compartilhados, com dividir) e **Minha preparação** (privada por conta, com regra nova do Firestore); migração automática dos gastos antigos; checklist com **Pronto** no lugar de “Tenho” e legenda dos status |
+| 1.1.0 | 24/10/2026 | Tela **Mapa** com pins por circuito (cor, ícone e ordem), ficha com Google Maps, mover/criar/remover pontos, filtros e cache do mapa offline; **inserir/remover dias** empurrando as datas; versão centralizada em `js/version.js` |
+| 1.0.3 | 24/10/2026 | Tela de login cobre o app inteiro |
+| 1.0.2 | 24/10/2026 | Configuração real do Firebase; e-mails retirados do modelo de regras |
+| 1.0.1 | 24/10/2026 | Sincronização com Firebase ligada |
+| 1.0.0 | 24/10/2026 | Primeira versão: roteiro de 12 a 18/01, circuitos, checklist por piloto, gastos com acerto, hospedagem, pendências, modo offline e instalação como app |
 
 ## Avisos
 
