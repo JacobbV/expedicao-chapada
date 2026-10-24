@@ -12,7 +12,7 @@
   --nav-h:62px;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root{
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141817; --surface:#1c2120; --line:#313835; --fg:#e6e9e4; --muted:#9aa49d;
   --asphalt:#0d1011; --asphalt-2:#1a1f21; --stripe:#f0b627;
   --road:#8c968f; --c-chegada:#e7629f; --c-1:#5e95e0; --c-2:#ec8a3a; --c-3:#5cb873;
@@ -20,6 +20,15 @@
   --ok-bg:#1d3324; --warn-bg:#382c15; --bad-bg:#3d211d; --info-bg:#1b2a40; --mute-bg:#262c2a;
   --shadow:0 10px 30px rgba(0,0,0,.5);
   color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141817; --surface:#1c2120; --line:#313835; --fg:#e6e9e4; --muted:#9aa49d;
+  --asphalt:#0d1011; --asphalt-2:#1a1f21; --stripe:#f0b627;
+  --road:#8c968f; --c-chegada:#e7629f; --c-1:#5e95e0; --c-2:#ec8a3a; --c-3:#5cb873;
+  --ok:#5cb873; --warn:#e0a548; --bad:#ec7565; --info:#5e95e0;
+  --ok-bg:#1d3324; --warn-bg:#382c15; --bad-bg:#3d211d; --info-bg:#1b2a40; --mute-bg:#262c2a;
+  --shadow:0 10px 30px rgba(0,0,0,.5);
+  color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
 
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -199,7 +208,8 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 
 /* Mapa */
 :root{--c-b:#7a5bb5}
-@media (prefers-color-scheme: dark){:root{--c-b:#a68be0}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--c-b:#a68be0}}
+:root[data-theme="dark"]{--c-b:#a68be0}
 .mapbox{height:min(62vh,560px);min-height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--mute-bg);position:relative;z-index:0}
 .mapbox.placing{cursor:crosshair;box-shadow:0 0 0 3px var(--stripe)}
 .mapbox .leaflet-container{font:inherit}
@@ -241,3 +251,14 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 .social span{font-weight:700;min-width:0}
 .social small{display:block;font-weight:500;color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ptmark svg{vertical-align:-2px}
+
+/* Tema: botão no menu */
+.themeseg{display:grid;grid-template-columns:repeat(3,1fr);width:100%}
+.themeseg button{padding:9px 6px}
+
+/* Admin e Sobre */
+body.not-admin .adm{display:none!important}
+.story p{max-width:68ch}
+.pilots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.pilot{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.pilot b{display:block}.pilot small{color:var(--muted)}

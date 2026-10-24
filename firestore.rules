@@ -1,20 +1,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // MODELO: troque pelos e-mails reais SÓ no console do Firebase, nunca aqui (repositório público).
+    // MODELO: troque os e-mails pelos reais SÓ no console do Firebase, nunca aqui (repositório público).
+    // Cada e-mail aponta para o perfil do piloto no app.
+    function pilotos() {
+      return {
+        'SEU_EMAIL@gmail.com': 'jaco',
+        'EMAIL_DO_KAIQUE@gmail.com': 'kaique'
+      };
+    }
     function membro() {
-      return request.auth != null
-        && request.auth.token.email in ['SEU_EMAIL@gmail.com', 'EMAIL_DO_KAIQUE@gmail.com'];
+      return request.auth != null && request.auth.token.email in pilotos();
     }
-    // Documento da viagem
+    function eu() {
+      return pilotos()[request.auth.token.email];
+    }
+    function admin() {
+      return membro() && eu() == 'jaco';
+    }
+
+    // Viagem (roteiro, datas, gasolina, Sobre): todos leem, só o admin altera
     match /trips/{tripId} {
-      allow read, write: if membro();
+      allow read: if membro();
+      allow write: if admin();
     }
-    // Dados compartilhados: roteiro, checklist, gastos da viagem, hospedagem, mapa…
-    match /trips/{tripId}/{col}/{docId} {
-      allow read, write: if membro() && col != 'private';
+    // Perfil do piloto e checklist: cada um altera o seu
+    match /trips/{tripId}/riders/{rid} {
+      allow read: if membro();
+      allow write: if admin() || rid == eu();
     }
-    // Preparação: cada conta lê e escreve só a própria área
+    match /trips/{tripId}/checklist/{rid} {
+      allow read: if membro();
+      allow write: if rid == eu();
+    }
+    // Gastos da viagem: cada um cria, altera e apaga os que pagou
+    match /trips/{tripId}/expenses/{id} {
+      allow read: if membro();
+      allow create: if membro() && request.resource.data.rider == eu();
+      allow update: if membro() && resource.data.rider == eu() && request.resource.data.rider == eu();
+      allow delete: if membro() && resource.data.rider == eu();
+    }
+    // Mapa, hospedagem e pendências: todos leem, só o admin altera
+    match /trips/{tripId}/points/{id} {
+      allow read: if membro();
+      allow write: if admin();
+    }
+    match /trips/{tripId}/lodging/{id} {
+      allow read: if membro();
+      allow write: if admin();
+    }
+    match /trips/{tripId}/meta/{id} {
+      allow read: if membro();
+      allow write: if admin();
+    }
+    // Meus gastos: cada conta lê e escreve só a própria área
     match /trips/{tripId}/private/{uid}/{document=**} {
       allow read, write: if membro() && request.auth.uid == uid;
     }

@@ -2,13 +2,14 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.4.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.5.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
 - [Mapa](#mapa)
 - [Gastos](#gastos)
 - [Checklist](#checklist)
+- [Quem pode mexer em quê](#quem-pode-mexer-em-quê)
 - [Publicar e atualizar](#publicar-e-atualizar)
 - [Sincronização (Firebase)](#sincronização-firebase)
 - [Estrutura](#estrutura)
@@ -27,8 +28,9 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
-| **Menu ☰ → Ajustes** | Preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
-| **Menu ☰ → Sobre** | Nome do app, versão, criador, contatos (GitHub, Instagram, Facebook, TikTok, WhatsApp, e-mail; só aparecem os preenchidos) e créditos |
+| **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
+| **Menu ☰ → Aparência** | Atalho para trocar entre **Automático** (segue o celular), **☀ Dia** e **☾ Noite**. A escolha fica salva em cada aparelho |
+| **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, criador e contatos (só aparecem os preenchidos) e créditos. Todos veem; só o admin edita |
 
 ## Mapa
 
@@ -110,6 +112,25 @@ Um checklist por piloto. Os dois veem os dois, e cada um só altera o seu.
 
 O progresso conta como resolvido o que está em **Pronto** ou **Não preciso**.
 
+## Quem pode mexer em quê
+
+O **Jacó é o admin**. O **Kaique** (e qualquer outro piloto) é usuário: vê tudo e mexe só no que é dele. A regra do Firestore garante isso no servidor, não só na tela.
+
+| Parte do app | Admin (Jacó) | Usuário (Kaique) |
+|---|---|---|
+| Roteiro, datas, inserir/remover dias | Edita | Só vê |
+| Mapa: criar, mover, editar e remover pontos | Edita | Só vê (pode ligar pontos e abrir no Google Maps) |
+| Hospedagem e pendências | Edita | Só vê |
+| Gasolina e fim das férias (Ajustes) | Edita | Só vê |
+| Sobre: textos e contatos | Edita | Só vê |
+| Próprio checklist | Edita o seu | Edita o seu |
+| Próprio perfil e moto (consumo, tanque) | Edita (e pode ajustar o do outro) | Edita o seu |
+| Gastos da viagem | Cria e altera os que pagou | Cria e altera os que pagou |
+| Meus gastos (privado) | Só os seus | Só os seus |
+| Tema dia/noite | No próprio aparelho | No próprio aparelho |
+
+Para quem não é admin, os botões de edição somem e aparece o aviso “🔒 Só o Jacó (admin) altera…”.
+
 ## Publicar e atualizar
 
 Hospedagem: **GitHub Pages**, em Settings → Pages → Deploy from a branch → `main` / `(root)`.
@@ -135,12 +156,12 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 - **Gastos da preparação** ficam em `trips/chapada2027/private/<id da conta>/prep`. A regra deixa cada conta ler só a própria área, então nem o outro piloto consegue ver, mesmo mexendo no código.
 - **Configuração do app web:** [`firebase-config.js`](firebase-config.js). A `apiKey` pode ficar pública, porque quem protege os dados são as regras.
 
-### Atualizar as regras (a partir da v1.2.0)
-A v1.2.0 criou a área privada da preparação. Copie o conteúdo de `firestore.rules`, cole em **Firestore → Regras** no console, troque os dois e-mails pelos reais e clique em **Publicar**. Sem isso, a aba *Minha preparação* mostra um aviso de permissão.
+### Atualizar as regras (a partir da v1.5.0)
+A v1.5.0 trouxe os papéis de admin e usuário. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
 
 ### Adicionar um piloto (ex.: Kaique)
 1. **Authentication → Usuários → Adicionar usuário**, com o e-mail e uma senha.
-2. **Firestore → Regras**: acrescente o e-mail na lista e clique em **Publicar**.
+2. **Firestore → Regras**: troque o e-mail modelo dele na função `pilotos()` pelo real e clique em **Publicar**.
 3. Mande para ele o link, o e-mail e a senha. No primeiro acesso, ele escolhe o próprio perfil.
 
 ### Como o offline funciona
@@ -170,7 +191,9 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.4.0** | 24/10/2026 | Aba privada vira **Meus gastos**, com o total geral (preparação + o que você pagou na viagem); chave **Exibir para o grupo** em cada gasto da preparação; valores sempre com centavos; casinha na pousada da lista do mapa; tela **Sobre** no menu com versão, criador, contatos editáveis e créditos |
+| **1.5.0** | 24/10/2026 | Papéis **admin** (Jacó) e **usuário** (Kaique): o usuário vê tudo e só altera o próprio checklist, perfil e gastos, com a regra do Firestore garantindo no servidor; Sobre ganha **Quem somos**, **Nossa história**, **Objetivos e sonhos** e **Sobre o app**, com textos editáveis pelo admin |
+| 1.4.1 | 24/10/2026 | Tema **Dia / Noite / Automático** no menu ☰ e em Ajustes, salvo por aparelho e aplicado antes da tela aparecer; aviso do navegador sobre a tag de app instalável corrigido |
+| 1.4.0 | 24/10/2026 | Aba privada vira **Meus gastos**, com o total geral (preparação + o que você pagou na viagem); chave **Exibir para o grupo** em cada gasto da preparação; valores sempre com centavos; casinha na pousada da lista do mapa; tela **Sobre** no menu com versão, criador, contatos editáveis e créditos |
 | 1.3.0 | 24/10/2026 | Botão **Ligar pontos** no mapa: liga cada circuito saindo e voltando à pousada e mostra os km por circuito e o total (pela estrada via OSRM, ou em linha reta a pé/sem internet). README com sumário, seções de Gastos e Checklist e este histórico |
 | 1.2.2 | 24/10/2026 | Gastos da viagem ganham **Manutenção / conserto**, **Equipamentos** e **Ferramentas**; preparação ganha **Outros**; o formulário diz em qual aba o gasto entra |
 | 1.2.1 | 24/10/2026 | Menu **☰** no topo (Hospedagem, Pendências, Pilotos, Ajustes) no lugar do “Mais” embaixo; barra de baixo com 5 itens; com internet o app sempre busca os arquivos novos, o que evita versões misturadas |

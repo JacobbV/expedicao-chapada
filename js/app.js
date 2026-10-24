@@ -40,6 +40,10 @@ function me() {
   return riderIds().find(id => (S.riders[id].email || "").toLowerCase() === em) || null;
 }
 const canEdit = rid => ST.mode === "local" || rid === me();
+// Admin (Jacó) mexe no app geral; os outros só nos próprios dados
+const isAdmin = () => ST.mode === "local" || me() === (S.trip?.admin || "jaco");
+const ADMIN_ACTS = new Set(["editStory", "editDay", "insDay", "shiftDates", "addDay", "newLodge", "editLodge", "lst", "newPend", "delPend", "newPt", "editAbout"]);
+const adminNote = what => isAdmin() ? "" : `<p class="note">🔒 Só o ${esc(rname(S.trip?.admin || "jaco"))} (admin) altera ${what}. Você vê tudo para consulta.</p>`;
 
 /* ---------- cálculos ---------- */
 const days = () => [...(S.trip?.days || [])].sort((a, b) => a.date.localeCompare(b.date));
@@ -140,6 +144,7 @@ function render() {
   if (route === "mais") { route = "inicio"; history.replaceState(null, "", "#inicio"); setTimeout(openMenu, 0); }
   if (!VIEWS[route]) route = "inicio";
   if (!viewRider || !S.riders[viewRider]) viewRider = me() || riderIds()[0];
+  document.body.classList.toggle("not-admin", !isAdmin());
   if (route === "mapa" && mapView && mapView.alive()) { updateMapParts(); renderTop(); return; }
   $("#view").innerHTML = `<section class="view">${VIEWS[route]()}</section>`;
   if (route === "mapa") mountMap();
@@ -234,17 +239,18 @@ function roteiro() {
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
-        <div class="row"><button class="btn sm" data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm" data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
+        <div class="row"><button class="btn sm adm" data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm adm" data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
       </div></details>`;
   }).join("");
   const first = ds[0], last = ds[ds.length - 1];
   return `
   <div class="between"><h2>Roteiro</h2><span class="muted num">${num(totalKm())} km</span></div>
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
-    <button class="btn sm" data-act="shiftDates">Mudar data de saída</button></div>
+    <button class="btn sm adm" data-act="shiftDates">Mudar data de saída</button></div>
   <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
+  ${adminNote("o roteiro")}
   <div class="stack">${cards}</div>
-  <button class="btn block" data-act="addDay">+ Adicionar dia de folga</button>`;
+  <button class="btn block adm" data-act="addDay">+ Adicionar dia de folga</button>`;
 }
 function dayForm(d) {
   const opts = Object.entries(CIRCUITS).map(([k, c]) => `<option value="${k}" ${d.circ === k ? "selected" : ""}>${esc(c.name)}</option>`).join("");
@@ -492,6 +498,7 @@ function openMenu() {
       <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a>
       <a href="#sobre">Sobre <span class="muted">versão ${esc(self.APP_VERSION || "?")}</span></a>
     </div>
+    <div class="stack" style="gap:6px"><div class="label">Aparência</div>${themeSeg()}</div>
     <p class="muted" style="font-size:.8rem">Criado por ${esc(about().author)} · © 2026</p></nav></div>`;
   const bg = $("#layer").firstElementChild;
   bg.addEventListener("click", e => { if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = ""; });
@@ -512,15 +519,15 @@ function hospedagem() {
       <div class="between"><span class="name">${esc(l.name)}</span>${l.status === "confirmada" ? `<span class="chip s-ok">confirmada</span>` : l.status === "escolhida" ? `<span class="chip s-pend">escolhida · falta reservar</span>` : `<span class="chip s-mute">opção</span>`}</div>
       <dl class="kv">${l.price ? `<dt>Valor</dt><dd class="num">${brl(l.price)}${l.priceNote ? ` <span class="muted">· ${esc(l.priceNote)}</span>` : ""}</dd>` : ""}
         ${l.address ? `<dt>Endereço</dt><dd>${esc(l.address)}</dd>` : ""}${l.parking ? `<dt>Estacion.</dt><dd>${esc(l.parking)}</dd>` : ""}${l.notes ? `<dt>Notas</dt><dd>${esc(l.notes)}</dd>` : ""}</dl>
-      <div class="row">${l.link ? `<a class="btn sm" href="${esc(l.link)}" target="_blank" rel="noopener">Abrir link</a>` : ""}<button class="btn sm" data-act="editLodge" data-id="${l.id}">Editar</button>
-        <div class="seg" role="group">${[["opcao", "Opção"], ["escolhida", "Escolhida"], ["confirmada", "Confirmada"]].map(([s, t]) => `<button data-act="lst" data-id="${l.id}" data-s="${s}" aria-pressed="${l.status === s}">${t}</button>`).join("")}</div></div></div>`;
+      <div class="row">${l.link ? `<a class="btn sm" href="${esc(l.link)}" target="_blank" rel="noopener">Abrir link</a>` : ""}<button class="btn sm adm" data-act="editLodge" data-id="${l.id}">Editar</button>
+        <div class="seg adm" role="group">${[["opcao", "Opção"], ["escolhida", "Escolhida"], ["confirmada", "Confirmada"]].map(([s, t]) => `<button data-act="lst" data-id="${l.id}" data-s="${s}" aria-pressed="${l.status === s}">${t}</button>`).join("")}</div></div></div>`;
     return `<div class="stack"><div class="between"><h3>${esc(et.name)}</h3><span class="muted num" style="font-size:.85rem">${d ? `${fmtD(d.date)} → ${checkout ? fmtD(checkout.date) : "?"}${nights ? ` · ${nights} ${nights === 1 ? "noite" : "noites"}` : ""}` : ""}</span></div>
       ${chosen.map(card).join("")}
       ${chosen.length && opts.length ? `<details><summary class="muted" style="cursor:pointer;font-weight:700">Outras opções (${opts.length})</summary><div class="stack" style="margin-top:8px">${opts.map(card).join("")}</div></details>` : opts.map(card).join("")}
       ${!ls.length ? `<p class="muted">Nenhuma opção cadastrada.</p>` : ""}
-      <button class="btn sm" data-act="newLodge" data-etapa="${k}">+ Opção em ${esc(et.name.split(" ·")[0])}</button></div>`;
+      <button class="btn sm adm" data-act="newLodge" data-etapa="${k}">+ Opção em ${esc(et.name.split(" ·")[0])}</button></div>`;
   }).join("");
-  return `${backLink}<h2>Hospedagem</h2><p class="note">Cadastre as opções. Ao marcar uma como escolhida ou confirmada, ela sobe para o topo e as outras ficam guardadas em “Outras opções”.</p>${sec}`;
+  return `${backLink}<h2>Hospedagem</h2><p class="note">Cadastre as opções. Ao marcar uma como escolhida ou confirmada, ela sobe para o topo e as outras ficam guardadas em “Outras opções”.</p>${adminNote("a hospedagem")}${sec}`;
 }
 function lodgeForm(l, etapa) {
   const isNew = !l; l = l || { etapa, name: "", price: "", priceNote: "", address: "", link: "", parking: "", notes: "", status: "opcao" };
@@ -551,11 +558,12 @@ function pendencias() {
   const col = p => p === "Segurança" ? "var(--bad)" : p === "Logística" ? "var(--warn)" : "var(--muted)";
   const open = all.filter(p => !done[p[0]]).length;
   return `${backLink}<div class="between"><h2>Pendências</h2><span class="muted">${open} de ${all.length} abertas</span></div>
+  ${adminNote("as pendências")}
   ${prios.map(pr => { const items = all.filter(p => p[1] === pr); if (!items.length) return "";
     return `<div class="stack"><div class="prio" style="color:${col(pr)}">${pr.toUpperCase()}</div>${items.map(([id, , t, d, isC]) => `
-      <label class="pitem${done[id] ? " done" : ""}" for="pd-${id}"><input type="checkbox" id="pd-${id}" data-act="pd" data-id="${id}" ${done[id] ? "checked" : ""}>
-      <div><div class="pt">${esc(t)}</div>${d ? `<div class="pd">${esc(d)}</div>` : ""}</div>${isC ? `<button class="x" data-act="delPend" data-id="${id}" aria-label="Remover">×</button>` : "<span></span>"}</label>`).join("")}</div>`; }).join("")}
-  <button class="btn block" data-act="newPend">+ Nova pendência</button>`;
+      <label class="pitem${done[id] ? " done" : ""}" for="pd-${id}"><input type="checkbox" id="pd-${id}" data-act="pd" data-id="${id}" ${done[id] ? "checked" : ""} ${isAdmin() ? "" : "disabled"}>
+      <div><div class="pt">${esc(t)}</div>${d ? `<div class="pd">${esc(d)}</div>` : ""}</div>${isC ? `<button class="x adm" data-act="delPend" data-id="${id}" aria-label="Remover">×</button>` : "<span></span>"}</label>`).join("")}</div>`; }).join("")}
+  <button class="btn block adm" data-act="newPend">+ Nova pendência</button>`;
 }
 function pendForm() {
   openSheet(`<h3>Nova pendência</h3><form id="pF" class="stack">
@@ -595,7 +603,9 @@ function riderForm(id) {
 function ajustes() {
   const local = ST.mode === "local";
   return `${backLink}<h2>Ajustes</h2>
-  <form class="card stack" id="setF">
+  <div class="card stack"><h3>Aparência</h3>${themeSeg()}<p class="muted" style="font-size:.85rem">Automático segue o tema do celular ou do navegador. A escolha vale só para este aparelho.</p></div>
+  ${isAdmin() ? "" : `<div class="card stack"><h3>Viagem</h3><dl class="kv"><dt>Gasolina</dt><dd class="num">${brl(S.trip.gasPrice)}/L</dd><dt>Fim das férias</dt><dd>${S.trip.feriasFim ? fmtD(S.trip.feriasFim) : "—"}</dd></dl>${adminNote("esses valores")}</div>`}
+  <form class="card stack adm" id="setF">
     <h3>Viagem</h3>
     <div class="grid2"><label class="field"><span>Gasolina (R$/L)</span><input id="sGas" inputmode="decimal" value="${S.trip.gasPrice ?? ""}"><small>Usado nas estimativas e como padrão ao abastecer</small></label>
     <label class="field"><span>Fim das férias</span><input id="sFer" type="date" value="${S.trip.feriasFim || ""}"></label></div>
@@ -650,9 +660,9 @@ function listHTML() {
 }
 function setBanner(html) { const b = $("#mapBanner"); if (b) b.innerHTML = html ? `<div class="mapbanner"><span>${html}</span><button class="btn sm" data-act="cancelPlace">Cancelar</button></div>` : ""; }
 function mapa() {
-  return `<div class="between"><h2>Mapa</h2><div class="row"><button class="btn sm" data-act="linkToggle" id="linkBtn" aria-pressed="${linkOn}">${linkOn ? "✓ Pontos ligados" : "Ligar pontos"}</button><button class="btn sm" data-act="newPt">+ Ponto</button></div></div>
+  return `<div class="between"><h2>Mapa</h2><div class="row"><button class="btn sm" data-act="linkToggle" id="linkBtn" aria-pressed="${linkOn}">${linkOn ? "✓ Pontos ligados" : "Ligar pontos"}</button><button class="btn sm adm" data-act="newPt">+ Ponto</button></div></div>
   <div class="filters" id="mapChips">${chipsHTML()}</div>
-  <div id="mapBanner"></div>
+  <div id="mapBanner"></div>${adminNote("os pontos do mapa")}
   <div id="map" class="mapbox"><p class="muted" style="padding:16px">Carregando o mapa…</p></div>
   <p class="note">Toque num pin para ver detalhes e abrir no Google Maps. Segure o dedo no mapa (ou use “+ Ponto”) para criar um ponto. O mapa só aparece sem internet nas áreas já abertas antes; para navegar sem sinal, baixe a região no Google Maps offline.</p>
   <div id="routeBox"></div>
@@ -668,7 +678,7 @@ function mountMap() {
     const el = $("#map"); if (route !== "mapa" || !el) return;
     if (mapView) { try { mapView.map.remove(); } catch (e) {} }
     el.innerHTML = "";
-    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll) });
+    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => { if (isAdmin()) pointForm(null, ll); } });
     mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
     routeKey = ""; updateRoutes();
     mapView.invalidate();
@@ -684,8 +694,8 @@ function pointSheet(id) {
       ${has ? `<dt>Posição</dt><dd class="num">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</dd>` : `<dt>Posição</dt><dd><span class="chip s-pend">sem posição</span></dd>`}
       ${p.src ? `<dt>Fonte</dt><dd>${esc(p.src)}</dd>` : ""}</dl>
     ${p.note ? `<p class="note">${esc(p.note)}</p>` : ""}
-    <div class="actions">${has ? `<a class="btn primary" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a>` : `<button class="btn primary" data-s="place">Marcar no mapa</button>`}</div>
-    <div class="actions"><button class="btn" data-s="edit">Editar</button>${has ? `<button class="btn" data-s="move">Mover pin</button>` : ""}<button class="btn danger" data-s="del">Remover</button></div>`, sh => {
+    <div class="actions">${has ? `<a class="btn primary" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a>` : (isAdmin() ? `<button class="btn primary" data-s="place">Marcar no mapa</button>` : `<span class="chip s-pend">sem posição</span>`)}</div>
+    <div class="actions adm"><button class="btn" data-s="edit">Editar</button>${has ? `<button class="btn" data-s="move">Mover pin</button>` : ""}<button class="btn danger" data-s="del">Remover</button></div>`, sh => {
     let armed = false;
     sh.addEventListener("click", e => {
       const b = e.target.closest("[data-s]"); if (!b) return; const a = b.dataset.s;
@@ -788,10 +798,31 @@ function dayPoints(d) {
     <button class="btn sm" data-act="mapCirc" data-v="${d.circ}" style="margin-top:8px">Ver no mapa</button></div>`;
 }
 
+/* ---------- TEMA ---------- */
+const getTheme = () => { try { return localStorage.getItem("theme") || "auto"; } catch (e) { return "auto"; } };
+function setTheme(t) {
+  try { t === "auto" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch (e) {}
+  const root = document.documentElement;
+  t === "auto" ? root.removeAttribute("data-theme") : root.setAttribute("data-theme", t);
+  if (mapView) { routeKey = ""; updateRoutes(); } // cores das linhas acompanham o tema
+}
+const themeSeg = () => `<div class="seg themeseg" role="group" aria-label="Tema">${[["auto", "Automático"], ["light", "☀ Dia"], ["dark", "☾ Noite"]].map(([k, l]) => `<button type="button" data-theme-set="${k}" aria-pressed="${getTheme() === k}">${l}</button>`).join("")}</div>`;
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-theme-set]"); if (!b) return;
+  setTheme(b.dataset.themeSet);
+  document.querySelectorAll("[data-theme-set]").forEach(x => x.setAttribute("aria-pressed", x.dataset.themeSet === b.dataset.themeSet));
+});
+
 /* ---------- SOBRE ---------- */
-const ABOUT_DEFAULT = { author: "Jacó", github: "https://github.com/JacobbV", instagram: "", facebook: "", tiktok: "", whatsapp: "", email: "" };
+const ABOUT_DEFAULT = { author: "Jacó", github: "https://github.com/JacobbV", instagram: "", facebook: "", tiktok: "", whatsapp: "", email: "",
+  // Textos iniciais: o admin edita em Sobre → Editar textos
+  nos: "Somos o Jacó e o Kaique, dois amigos de Catolé do Rocha-PB que gostam de estrada. O Jacó vai de BMW G 650 GS; o Kaique, de Honda CG 160 Titan, já com uma viagem de moto até Canoa Quebrada na bagagem.",
+  historia: "A ideia começou como uma conversa sobre a próxima viagem e virou a Expedição Chapada: cerca de 2.400 km de moto, de Catolé do Rocha até Lençóis, na Chapada Diamantina, em janeiro de 2027.",
+  objetivos: "Conhecer cachoeiras, serras e mirantes da Chapada, como o Pai Inácio e a Fumaça; viajar com segurança e no ritmo das duas motos; gastar com consciência; e registrar tudo em fotos e vídeos.",
+  appinfo: "Este aplicativo foi desenvolvido pelo Jacó para planejar e acompanhar a expedição: roteiro, mapa, checklist, gastos e hospedagem, funcionando até sem sinal na estrada." };
+const STORY = [["nos", "Quem somos"], ["historia", "Nossa história"], ["objetivos", "Objetivos e sonhos"], ["appinfo", "Sobre o app"]];
 const about = () => ({ ...ABOUT_DEFAULT, ...(S.trip?.about || {}) });
-const canEditAbout = () => ST.mode === "local" || me() === "jaco";
+const canEditAbout = () => isAdmin();
 const SOCIAL = [
   ["github", "GitHub", '<path d="M8 6L3 12l5 6M16 6l5 6-5 6"/>', v => /^https?:/.test(v) ? v : "https://github.com/" + v.replace(/^@/, "")],
   ["instagram", "Instagram", '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.5"/>', v => /^https?:/.test(v) ? v : "https://instagram.com/" + v.replace(/^@/, "")],
@@ -807,6 +838,9 @@ function sobre() {
   return `${backLink}<h2>Sobre</h2>
   <div class="hero"><div class="label" style="color:var(--asphalt-muted)">Aplicativo da viagem</div><div class="big" style="font-size:2.6rem">Expedição <span>Chapada</span></div>
     <div class="sub">Versão ${esc(self.APP_VERSION || "?")} · Catolé do Rocha-PB → Lençóis-BA · janeiro de 2027</div></div>
+  ${STORY.filter(([k]) => (a[k] || "").trim()).map(([k, t]) => `<div class="card stack story"><h3>${t}</h3>${esc(a[k]).split(/\n+/).map(par => `<p>${par}</p>`).join("")}
+    ${k === "nos" ? `<div class="pilots">${riderIds().map(id => `<div class="pilot"><b>${esc(rname(id))}</b><small>${esc(S.riders[id].moto || "")}</small></div>`).join("")}</div>` : ""}</div>`).join("")}
+  ${canEditAbout() ? `<button class="btn sm" data-act="editStory" style="justify-self:start">Editar textos</button>` : ""}
   <div class="card stack"><h3>Criador</h3><p>Criado por <b>${esc(a.author)}</b>.</p>
     ${links ? `<div class="socials">${links}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
     ${canEditAbout() ? `<button class="btn sm" data-act="editAbout" style="justify-self:start">Editar contatos</button>` : ""}</div>
@@ -814,6 +848,16 @@ function sobre() {
     <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
     <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
+}
+function storyForm() {
+  const a = about();
+  openSheet(`<h3>Textos do Sobre</h3><p class="muted" style="font-size:.85rem">Todos veem; só o admin edita. Deixe um campo vazio para esconder a seção.</p>
+    <form id="stF" class="stack">${STORY.map(([k, t]) => `<label class="field"><span>${t}</span><textarea id="st${k}" rows="4">${esc(a[k] || "")}</textarea></label>`).join("")}
+    <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#stF").addEventListener("submit", ev => { ev.preventDefault();
+      const out = {}; STORY.forEach(([k]) => out[k] = sh.querySelector("#st" + k).value.trim());
+      store.merge("trip", { about: out }); closeSheet(); toast("Textos salvos"); });
+  });
 }
 function aboutForm() {
   const a = about();
@@ -836,6 +880,7 @@ $("#view").addEventListener("click", e => {
   const act = b.dataset.act, id = b.dataset.id;
   if (act === "pd") return; // tratado no change
   if (b.tagName === "BUTTON") e.preventDefault();
+  if (ADMIN_ACTS.has(act) && !isAdmin()) { toast("Só o admin altera isso"); return; }
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
   else if (act === "addDay") { const ds = days(); const last = ds[ds.length - 1];
@@ -860,6 +905,7 @@ $("#view").addEventListener("click", e => {
     store.merge("checklist/" + rid, { items: { [id]: s === baseStatus(rid, id) ? null : s } }); }
   else if (act === "openMenu") openMenu();
   else if (act === "editAbout") { if (canEditAbout()) aboutForm(); }
+  else if (act === "editStory") { if (canEditAbout()) storyForm(); }
   else if (act === "gtab") { gastosTab = b.dataset.v; render(); }
   else if (act === "newExp") expForm(null, b.dataset.kind);
   else if (act === "editExp") openExpense(id, b.dataset.kind);
@@ -880,7 +926,7 @@ $("#view").addEventListener("toggle", e => { if (e.target.id === "clLegend") { t
 $("#view").addEventListener("toggle", e => { const d = e.target.closest?.("[data-day]"); if (!d) return; d.open ? openDays.add(d.dataset.day) : openDays.delete(d.dataset.day); }, true);
 $("#view").addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.act === "pd") store.merge("meta/pend", { done: { [t.dataset.id]: t.checked ? true : null } });
+  if (t.dataset.act === "pd" && isAdmin()) store.merge("meta/pend", { done: { [t.dataset.id]: t.checked ? true : null } });
   if (t.id === "impFile" && t.files[0]) { const r = new FileReader(); r.onload = () => { try { store.importJSON(r.result); toast("Backup restaurado"); } catch (er) { toast("Arquivo inválido: " + er.message); } }; r.readAsText(t.files[0]); }
 });
 $("#view").addEventListener("submit", e => {
