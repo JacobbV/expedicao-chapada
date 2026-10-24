@@ -1,72 +1,108 @@
 # 🏍️ Expedição Chapada Diamantina 2027
 
-PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**: roteiro dia a dia, circuitos de passeio, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet**. Quando a sincronização está ligada, as mudanças feitas offline sobem sozinhas assim que o sinal volta.
+PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
+
+**App:** <https://jacobbv.github.io/expedicao-chapada/>
 
 ## O que tem
 
 | Tela | O que faz |
 |---|---|
-| **Início** | Contagem regressiva, folga até o fim das férias, próximo dia, progresso do checklist dos dois pilotos, combustível previsto e acerto de contas |
-| **Roteiro** | 7 dias (12 a 18/01/2027) com o circuito de cada dia em cores. Dá para editar data, saída, km e observações, trocar o circuito de um dia (para fugir da chuva) e mudar a data de saída de tudo de uma vez |
-| **Checklist** | Um por piloto. O do Jacó já vem preenchido; o do Kaique começa em "Avaliar". Cada um edita o seu e vê o do outro |
-| **Gastos** | Cada um lança os seus. Abastecimento calcula o valor por litros × R$/L. O que for marcado como **compartilhado** entra no acerto ("Kaique deve R$ X ao Jacó") |
-| **Mais → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). Ao marcar uma como Escolhida ou Confirmada, ela sobe para o topo |
-| **Mais → Pendências** | Lista por prioridade (segurança, logística…), com pendências próprias |
-| **Mais → Pilotos** | Consumo e tanque de cada moto, que alimentam autonomia e custo de combustível |
-| **Mais → Ajustes** | Preço da gasolina, fim das férias, backup, status da sincronização |
+| **Início** | Contagem regressiva, folga até o fim das férias (avisa se o roteiro passar da data), próximo dia, progresso do checklist dos dois, combustível previsto e acerto de contas |
+| **Roteiro** | Dias com o circuito de cada um, em cores. Permite editar data, saída, km e observações, trocar o circuito de um dia, **inserir um dia depois de outro** (as datas seguintes avançam) ou **remover** (as seguintes recuam), mudar a data de saída de tudo e abrir os pontos do dia no mapa |
+| **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo e filtrar por circuito |
+| **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro |
+| **Gastos** | Cada um lança os seus. No abastecimento, o valor é calculado por litros × R$/L. Os gastos compartilhados entram no acerto de contas |
+| **Mais → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
+| **Mais → Pendências** | Lista por prioridade, com pendências próprias |
+| **Mais → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
+| **Mais → Ajustes** | Preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
 
-## 1. Publicar no GitHub Pages
+## Mapa
 
-1. Suba estes arquivos na branch `main` do repositório.
-2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` / `(root)` → Save**.
-3. Em 1–2 minutos o app fica em `https://jacobbv.github.io/expedicao-chapada/`.
-4. No celular, abra o link e use **Adicionar à tela inicial** (Chrome: menu ⋮ → *Instalar app*; iPhone/Safari: Compartilhar → *Adicionar à Tela de Início*).
+### Cores e ícones
+| Circuito | Cor |
+|---|---|
+| Chegada · Lençóis a pé | Rosa |
+| Circuito 1 · Mosquito, Poço do Diabo, Pai Inácio | Azul |
+| Circuito 2 · Vale do Capão, Fumaça, Riachinho | Laranja |
+| Circuito 3 · Marimbus e Roncador | Verde |
+| Plano B · Lapa Doce e Pratinha | Roxo |
+| Estrada (Catolé, Petrolina) | Cinza |
 
-Sem nenhuma configuração extra, o app roda em **modo local**: tudo fica salvo só naquele celular.
+Os ícones dentro do pin indicam o tipo de lugar: pousada (casa), cachoeira ou poço (gota), mirante ou morro (montanha), gruta, embarque de canoa, cidade ou vila, posto de combustível e outro ponto.
 
-## 2. Ligar a sincronização entre os dois celulares (Firebase, grátis)
+### Como usar
+- **Ver detalhes:** toque num pin ou num item da lista abaixo do mapa.
+- **Navegar:** use **Abrir no Google Maps** na ficha do ponto.
+- **Corrigir a posição:** **Mover pin** e arraste, ou **Editar** e cole as coordenadas do Google Maps (formato `-12.5583, -41.3895`).
+- **Criar ponto:** **+ Ponto**, ou segure o dedo no mapa.
+- **Pontos sem posição:** aparecem na lista com o selo *sem posição*. Toque no ponto e use **Marcar no mapa**.
+- **Tudo sincroniza:** o que um muda aparece no celular do outro.
 
-Leva uns 10 minutos e só precisa ser feito uma vez.
+### Offline
+O mapa usa o OpenStreetMap. Sem internet, ele mostra só as áreas que **já foram abertas antes** naquele celular (o app guarda até cerca de 3.000 pedaços de mapa). Antes da viagem, abra o mapa com Wi-Fi e passeie pelo zoom de Lençóis, Capão e da rota. Para **navegar** sem sinal, baixe a região no **Google Maps offline**: o botão de cada ponto abre direto lá.
 
-1. Acesse <https://console.firebase.google.com> → **Adicionar projeto** → nome `expedicao-chapada` (pode desativar o Google Analytics).
-2. **Build → Authentication → Começar → Método de login: E-mail/senha → Ativar**.
-3. Na aba **Users → Adicionar usuário**, crie duas contas: a sua e a do Kaique (e-mail + senha).
-4. Ainda em Authentication → **Settings → User actions**, desmarque **Enable create (sign-up)**. Assim ninguém consegue criar conta sozinho.
-5. **Build → Firestore Database → Criar banco de dados** → modo produção → região `southamerica-east1 (São Paulo)`.
-6. Na aba **Regras**, cole o conteúdo de [`firestore.rules`](firestore.rules), **troque os dois e-mails** pelos das contas criadas e clique em **Publicar**.
-7. Em **⚙️ Configurações do projeto → Seus apps → Web (`</>`)**, registre o app com o nome `chapada`. **Não** marque Firebase Hosting.
-8. Copie o objeto `firebaseConfig` que aparecer e cole no arquivo [`firebase-config.js`](firebase-config.js), no lugar do `null`.
-9. Em **Authentication → Settings → Authorized domains**, adicione `jacobbv.github.io`.
-10. Faça commit, push e aumente a `VERSION` no `sw.js` (ex.: `v1.0.1`) para os celulares pegarem a versão nova.
+### De onde vêm as posições
+As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada ponto mostra a fonte. Distâncias no mapa são **em linha reta** a partir da pousada, não pela estrada.
 
-Pronto: o app passa a pedir login. No primeiro acesso, cada um escolhe **"Sou Jacó"** ou **"Sou Kaique"**.
+| Ponto | Fonte |
+|---|---|
+| Pousada Raízes de Lençóis | Informada pelo Jacó |
+| Centro de Lençóis, Pai Inácio, Cachoeira da Fumaça, Catolé do Rocha, Petrolina | Wikipedia |
+| Serrano, Salão de Areias, Poço Halley, Cachoeirinha, Primavera, Ribeirão do Meio, Mosquito, Poço do Diabo, Vila do Capão | komoot |
+| Cachoeira do Riachinho | Outdooractive |
+| Gruta da Lapa Doce, Fazenda Pratinha | Showcaves.com |
+| **Sem posição ainda:** Mirante de Lençóis, Povoado do Remanso, embarque no Marimbus, piscinas do Rio Roncador | Marcar no app quando confirmar |
 
-> A chave `apiKey` do Firebase não é senha: ela vai no código do site normalmente. Quem protege os dados são as regras do Firestore com os dois e-mails.
+## Publicar e atualizar
 
-> Se você já usou o app no modo local, baixe um backup em **Ajustes → Baixar backup** antes de ligar a sincronização. Os dados locais não vão sozinhos para a nuvem.
+Hospedagem: **GitHub Pages**, em Settings → Pages → Deploy from a branch → `main` / `(root)`.
 
-## 3. Como o offline funciona
+Para cada atualização:
+1. Aumente a versão em [`js/version.js`](js/version.js), por exemplo `1.1.0` → `1.1.1`. Esse é o único lugar da versão: o `sw.js` e a tela de Ajustes leem dela. Sem trocar a versão, os celulares continuam abrindo a versão antiga guardada.
+2. No terminal:
+   ```powershell
+   git add .
+   git commit -m "feat: o que mudou"
+   git push
+   ```
+3. Em 1–2 minutos o site atualiza. No celular, feche e abra o app com internet.
 
-- O primeiro acesso precisa de internet: ele baixa o app e, no modo nuvem, faz o login.
-- Depois disso o app abre sem sinal. Tudo o que você edita fica guardado no celular.
-- O selo no topo mostra o estado: **Sincronizado**, **Offline · na fila** (há mudanças esperando sinal) ou **Enviando…**.
-- Quando os dois editam a mesma coisa offline, vale a última alteração que chegar ao servidor.
+No celular: abra o link no Chrome → menu ⋮ → **Instalar app** (no iPhone: Compartilhar → *Adicionar à Tela de Início*).
 
-## Atualizar o app
+## Sincronização (Firebase)
 
-Edite os arquivos, aumente `VERSION` em `sw.js`, faça `git add . && git commit -m "..." && git push`. Os celulares pegam a versão nova ao abrir o app com internet. Às vezes é preciso fechar e abrir de novo.
+O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
+- **Authentication → E-mail/senha**, com o cadastro público **desligado** (Configurações → Ações do usuário → *Ativar criação* desmarcado). As contas são criadas à mão em **Usuários**.
+- **Firestore** em `southamerica-east1`, com os dados em `trips/chapada2027` e subcoleções `riders`, `checklist`, `meta`, `expenses`, `lodging` e `points`.
+- **Regras:** o arquivo [`firestore.rules`](firestore.rules) é só um **modelo**, com e-mails falsos. A regra que vale é a publicada no console, com os e-mails reais. Não coloque e-mails reais neste repositório público.
+- **Configuração do app web:** [`firebase-config.js`](firebase-config.js). A `apiKey` pode ficar pública, porque quem protege os dados são as regras.
+
+### Adicionar um piloto (ex.: Kaique)
+1. **Authentication → Usuários → Adicionar usuário**, com o e-mail e uma senha.
+2. **Firestore → Regras**: acrescente o e-mail na lista e clique em **Publicar**.
+3. Mande para ele o link, o e-mail e a senha. No primeiro acesso, ele escolhe o próprio perfil.
+
+### Como o offline funciona
+- O primeiro login precisa de internet. Depois disso o app abre sem sinal.
+- O selo no topo mostra o estado: **Sincronizado**, **Offline · na fila** ou **Enviando…**.
+- Mudanças feitas offline sobem sozinhas. Se os dois mudarem a mesma coisa, vale a última que chegar.
+- **Não saia da conta durante a viagem:** sem internet não dá para entrar de novo.
 
 ## Estrutura
 
 ```
 index.html            casca do app
 css/app.css           visual (claro e escuro)
-js/data.js            dados-base: roteiro, circuitos, checklist, pendências
+js/version.js         versão do app (troque a cada publicação)
+js/data.js            dados-base: roteiro, circuitos, pontos do mapa, checklist, pendências
 js/store.js           armazenamento: modo local ou Firebase com cache offline
+js/map.js             mapa (Leaflet + OpenStreetMap) e desenho dos pins
 js/app.js             telas e interações
 firebase-config.js    configuração do Firebase (null = modo local)
-firestore.rules       regras de acesso para colar no Firebase
-sw.js                 service worker (offline)
+firestore.rules       modelo das regras do Firestore
+sw.js                 service worker (offline, cache de mapa)
 manifest.webmanifest  instalação como app
 icons/                ícones
 ```
@@ -74,3 +110,5 @@ icons/                ícones
 ## Avisos
 
 As distâncias da estrada e dos circuitos são **estimativas** do planejamento e ainda não foram validadas por GPS. Confira traçado, postos e condições das estradas de terra antes de sair, principalmente com chuva em janeiro.
+
+Mapa © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright).

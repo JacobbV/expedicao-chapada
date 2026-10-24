@@ -53,7 +53,7 @@ main{padding-top:20px;padding-bottom:calc(var(--nav-h) + 28px + env(safe-area-in
 
 /* Navegação inferior */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-.nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
+.nav .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--nav-h)}
 .nav a{display:grid;place-items:center;align-content:center;gap:3px;text-decoration:none;color:var(--muted);font-size:.7rem;font-weight:700;letter-spacing:.02em}
 .nav a svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .nav a[aria-current="page"]{color:var(--fg)}
@@ -196,3 +196,22 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 .login .err{color:#ec7565}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 80px + env(safe-area-inset-bottom));z-index:50;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;font-size:.88rem;box-shadow:var(--shadow);max-width:90vw}
 @media (prefers-reduced-motion:no-preference){.bar i,.catrow .b i{transition:width .35s ease}.sheet{animation:up .2s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}}
+
+/* Mapa */
+:root{--c-b:#7a5bb5}
+@media (prefers-color-scheme: dark){:root{--c-b:#a68be0}}
+.mapbox{height:min(62vh,560px);min-height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--mute-bg);position:relative;z-index:0}
+.mapbox.placing{cursor:crosshair;box-shadow:0 0 0 3px var(--stripe)}
+.mapbox .leaflet-container{font:inherit}
+.pin-wrap{background:none;border:0}
+.pin{position:relative;width:32px;height:42px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.pin svg{display:block}
+.pin-n{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#fff;color:#1d221e;border:2px solid var(--c);font:800 .7rem/14px var(--f-body);text-align:center}
+.sheet .pin{flex:none;filter:none}
+.fbtn .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:1px}
+.mapbanner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--warn-bg);border-radius:10px;padding:10px 12px;font-size:.9rem}
+.ptrow{appearance:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:8px;cursor:pointer;color:var(--fg)}
+.ptmark{width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;font:800 .8rem/26px var(--f-body);text-align:center}
+.ptt{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.ptt small{display:block;font-weight:500;color:var(--muted);font-size:.8rem}
+.nav a{font-size:.66rem}

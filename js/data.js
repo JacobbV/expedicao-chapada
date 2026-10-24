@@ -38,8 +38,59 @@ export const CIRCUITS = {
     trechos: [["Lençóis → Remanso", "20–25 km"], ["Remanso → Lençóis", "20–25 km"]],
     nota: "É o povoado do Remanso perto de Lençóis, não o município de Remanso-BA. Confirmar operador, embarque, preço e nível do rio.",
   },
+  planob: {
+    name: "Plano B · Lapa Doce e Pratinha", short: "Passeio · plano B de chuva", color: "var(--c-b)",
+    seq: ["Pousada", "Gruta da Lapa Doce", "Fazenda Pratinha", "Pousada"],
+    moto: "a medir", caminhada: "curta, dentro das grutas", acesso: "região de Iraquara",
+    nota: "Alternativa para dia de chuva forte. Confirmar acesso e funcionamento antes de ir.",
+  },
   folga: { name: "Folga / reserva", short: "Folga", color: "var(--muted)" },
 };
+
+// Tipos de ponto do mapa (ícone dentro do pin)
+export const PTYPES = {
+  pousada:   "Pousada",
+  cachoeira: "Cachoeira / poço",
+  mirante:   "Mirante / morro",
+  gruta:     "Gruta",
+  canoa:     "Embarque de canoa",
+  cidade:    "Cidade / vila",
+  posto:     "Posto de combustível",
+  ponto:     "Outro ponto",
+};
+
+// Pontos do mapa. Coordenadas conferidas em fontes públicas (campo src);
+// lat/lng null = sem coordenada confiável ainda: o app pede para marcar no mapa.
+export const POINTS_SEED = [
+  // Chegada · Lençóis a pé
+  { id: "pousada",    circ: "chegada", order: 0, type: "pousada",   name: "Pousada Raízes de Lençóis", lat: -12.558319, lng: -41.389530, note: "Base da viagem.", src: "Coordenada informada pelo Jacó" },
+  { id: "centro",     circ: "chegada", order: 1, type: "cidade",    name: "Centro histórico de Lençóis", lat: -12.56278, lng: -41.39000, note: "", src: "Wikipedia (Lençóis)" },
+  { id: "serrano",    circ: "chegada", order: 2, type: "cachoeira", name: "Serrano", lat: -12.563268, lng: -41.399422, note: "Lajes de pedra do rio Lençóis.", src: "komoot" },
+  { id: "salao",      circ: "chegada", order: 3, type: "gruta",     name: "Salão de Areias Coloridas", lat: -12.563756, lng: -41.398633, note: "", src: "komoot" },
+  { id: "halley",     circ: "chegada", order: 4, type: "cachoeira", name: "Poço Halley", lat: -12.561346, lng: -41.402574, note: "", src: "komoot" },
+  { id: "cachoeirinha", circ: "chegada", order: 5, type: "cachoeira", name: "Cachoeirinha", lat: -12.563360, lng: -41.401564, note: "", src: "komoot" },
+  { id: "primavera",  circ: "chegada", order: 6, type: "cachoeira", name: "Cachoeira da Primavera", lat: -12.5614, lng: -41.4064, note: "", src: "komoot" },
+  { id: "mirante",    circ: "chegada", order: 7, type: "mirante",   name: "Mirante de Lençóis", lat: null, lng: null, note: "Posição a confirmar.", src: "" },
+  { id: "ribeirao",   circ: "chegada", order: 8, type: "cachoeira", name: "Ribeirão do Meio", lat: -12.587433, lng: -41.388813, note: "Opcional: 3–4 km de caminhada por sentido.", src: "komoot" },
+  // Circuito 1
+  { id: "mosquito",   circ: "c1", order: 1, type: "cachoeira", name: "Cachoeira do Mosquito", lat: -12.372298, lng: -41.371003, note: "Acesso por estrada de terra: checar antes de levar a Titan.", src: "komoot" },
+  { id: "diabo",      circ: "c1", order: 2, type: "cachoeira", name: "Poço do Diabo / Mucugezinho", lat: -12.463683, lng: -41.418598, note: "Ao lado da BR-242.", src: "komoot" },
+  { id: "paiinacio",  circ: "c1", order: 3, type: "mirante",   name: "Morro do Pai Inácio", lat: -12.45750, lng: -41.47306, note: "Pôr do sol, se o horário permitir.", src: "Wikipedia (Mount of Pai Inácio)" },
+  // Circuito 2
+  { id: "capao",      circ: "c2", order: 1, type: "cidade",    name: "Vale do Capão (vila)", lat: -12.609577, lng: -41.500919, note: "Início da trilha da Fumaça por cima.", src: "komoot" },
+  { id: "fumaca",     circ: "c2", order: 2, type: "cachoeira", name: "Cachoeira da Fumaça (por cima)", lat: -12.60278, lng: -41.44778, note: "Trilha de 10–12 km ida e volta, 5–6 h.", src: "Wikipedia (Cachoeira da Fumaça)" },
+  { id: "riachinho",  circ: "c2", order: 3, type: "cachoeira", name: "Cachoeira do Riachinho", lat: -12.571990, lng: -41.515826, note: "", src: "Outdooractive" },
+  // Circuito 3
+  { id: "remanso",    circ: "c3", order: 1, type: "cidade",    name: "Povoado do Remanso", lat: null, lng: null, note: "Cerca de 22 km de Lençóis de carro. Posição a confirmar.", src: "" },
+  { id: "marimbus",   circ: "c3", order: 2, type: "canoa",     name: "Embarque no Marimbus", lat: null, lng: null, note: "Posição a confirmar com o operador.", src: "" },
+  { id: "roncador",   circ: "c3", order: 3, type: "cachoeira", name: "Piscinas do Rio Roncador", lat: null, lng: null, note: "Uns 30 min a pé depois da canoa. Posição a confirmar.", src: "" },
+  // Plano B
+  { id: "lapadoce",   circ: "planob", order: 1, type: "gruta", name: "Gruta da Lapa Doce", lat: -12.333803, lng: -41.604306, note: "", src: "Showcaves.com" },
+  { id: "pratinha",   circ: "planob", order: 2, type: "gruta", name: "Fazenda Pratinha", lat: -12.352592, lng: -41.540882, note: "", src: "Showcaves.com" },
+  // Estrada
+  { id: "catole",     circ: "estrada", order: 1, type: "cidade", name: "Catolé do Rocha", lat: -6.350, lng: -37.750, note: "Saída.", src: "Wikipedia" },
+  { id: "petrolina",  circ: "estrada", order: 2, type: "cidade", name: "Petrolina", lat: -9.38250, lng: -40.50222, note: "Pernoite na ida e na volta.", src: "Wikipedia" },
+];
 
 export function seedDays(start = "2027-01-12") {
   const base = [

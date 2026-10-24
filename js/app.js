@@ -1,10 +1,12 @@
-import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATEGORIES, baseStatus, addDays } from "./data.js";
+import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATEGORIES, PTYPES, baseStatus, addDays } from "./data.js";
 import { createStore, newId } from "./store.js";
+import { ensureLeaflet, MapView, pinHTML, distKm } from "./map.js";
 
 const store = createStore();
 let S = null, ST = null;
 let route = "inicio";
-let viewRider = null, clFilter = "all", expFilter = "todos";
+let viewRider = null, clFilter = "all", expFilter = "todos", mapFilter = "all";
+let mapView = null;
 const openDays = new Set();
 
 /* ---------- utilitários ---------- */
@@ -126,7 +128,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes };
 
 function render() {
   if (!S || !ST) return;
@@ -135,7 +137,9 @@ function render() {
   if (!S.trip) { $("#view").innerHTML = `<div class="card"><p>${ST.error ? esc(ST.error) : "Baixando os dados da viagem…"}</p></div>`; renderTop(); return; }
   if (!VIEWS[route]) route = "inicio";
   if (!viewRider || !S.riders[viewRider]) viewRider = me() || riderIds()[0];
+  if (route === "mapa" && mapView && mapView.alive()) { updateMapParts(); renderTop(); return; }
   $("#view").innerHTML = `<section class="view">${VIEWS[route]()}</section>`;
+  if (route === "mapa") mountMap();
   renderTop();
   if (!me() && !$("#layer").innerHTML) pickMe(true);
 }
@@ -171,7 +175,9 @@ function inicio() {
   const fim = S.trip.feriasFim; let margem = "";
   if (fim) {
     const folga = diffDays(last, fim) - 1;
-    margem = folga < 1
+    margem = folga < 0
+      ? `<div class="warnbox"><b>Passou das férias:</b> a chegada em casa é ${wd(last)} ${fmtD(last)} e as férias acabam ${fmtD(fim)}. Tire ${-folga} ${folga === -1 ? "dia" : "dias"} do roteiro ou adiante a saída.</div>`
+      : folga < 1
       ? `<div class="warnbox"><b>Sem folga:</b> a chegada em casa é ${wd(last)} ${fmtD(last)} e as férias acabam ${fmtD(fim)}. Vale adiantar a saída.</div>`
       : `<div class="infobox">Chegada em casa ${wd(last)} ${fmtD(last)}. Sobram <b>${folga} ${folga === 1 ? "dia" : "dias"}</b> de folga antes do fim das férias (${fmtD(fim)}).</div>`;
   }
@@ -222,7 +228,8 @@ function roteiro() {
         ${d.via ? `<div><div class="label">Caminho</div><div style="font-size:.9rem">${esc(d.via)}</div></div>` : ""}
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
-        <div class="row"><button class="btn sm" data-act="editDay" data-id="${d.id}">Editar dia</button></div>
+        ${dayPoints(d)}
+        <div class="row"><button class="btn sm" data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm" data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
       </div></details>`;
   }).join("");
   const first = ds[0], last = ds[ds.length - 1];
@@ -230,7 +237,7 @@ function roteiro() {
   <div class="between"><h2>Roteiro</h2><span class="muted num">${num(totalKm())} km</span></div>
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
     <button class="btn sm" data-act="shiftDates">Mudar data de saída</button></div>
-  <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito.</p>
+  <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
   <div class="stack">${cards}</div>
   <button class="btn block" data-act="addDay">+ Adicionar dia de folga</button>`;
 }
@@ -257,7 +264,8 @@ function dayForm(d) {
     let armed = false;
     sh.querySelector("#dDel").addEventListener("click", e => {
       if (!armed) { armed = true; e.target.textContent = "Toque de novo para remover"; return; }
-      store.merge("trip", { days: S.trip.days.filter(x => x.id !== d.id) }); closeSheet(); toast("Dia removido");
+      store.merge("trip", { days: S.trip.days.filter(x => x.id !== d.id).map(x => x.date > d.date ? { ...x, date: addDays(x.date, -1) } : x) });
+      closeSheet(); toast("Dia removido · datas seguintes recuaram 1 dia");
     });
   });
 }
@@ -391,7 +399,9 @@ function hospedagem() {
   const ds = days();
   const all = Object.entries(S.lodging || {}).map(([id, l]) => ({ id, ...l }));
   const sec = Object.entries(ETAPAS).map(([k, et]) => {
-    const d = ds[et.dayIndex]; const checkout = k === "lencois" ? ds[et.dayIndex + 4] || ds[ds.length - 1] : ds[et.dayIndex + 1];
+    const retIdx = ds.findIndex((x, i) => i > 1 && x.circ === "estrada");
+    const r = retIdx > 1 ? retIdx : ds.length - 1;
+    const [d, checkout] = k === "petrolina_ida" ? [ds[0], ds[1]] : k === "lencois" ? [ds[1], ds[r]] : [ds[r], ds[r + 1]];
     const nights = d && checkout ? diffDays(d.date, checkout.date) : null;
     const ls = all.filter(l => l.etapa === k);
     const chosen = ls.filter(l => l.status !== "opcao"), opts = ls.filter(l => l.status === "opcao");
@@ -501,7 +511,122 @@ function ajustes() {
     ${local ? `<label class="btn sm" for="impFile">Restaurar backup</label><input id="impFile" type="file" accept="application/json,.json" hidden>` : ""}</div>
     ${local ? `<button class="btn sm danger" data-act="reset" style="justify-self:start">Voltar aos dados iniciais</button>` : ""}
   </div>
-  <p class="muted" style="font-size:.8rem">Versão 1.0 · dados de distância e tempo são estimativas até validação por GPS.</p>`;
+  <p class="muted" style="font-size:.8rem">Versão ${esc(self.APP_VERSION || "?")} · dados de distância e tempo são estimativas até validação por GPS.</p>`;
+}
+
+/* ---------- MAPA ---------- */
+const CIRC_ORDER = ["chegada", "c1", "c2", "c3", "planob", "estrada"];
+const CIRC_BASE = { chegada: "Chegada", c1: "Circuito 1", c2: "Circuito 2", c3: "Circuito 3", planob: "Plano B", estrada: "Estrada", folga: "Folga" };
+const allPoints = () => Object.entries(S.points || {}).map(([id, p]) => ({ id, ...p }))
+  .sort((a, b) => (CIRC_ORDER.indexOf(a.circ) - CIRC_ORDER.indexOf(b.circ)) || ((a.order ?? 99) - (b.order ?? 99)) || a.name.localeCompare(b.name));
+const pcolor = c => CIRCUITS[c]?.color || "var(--muted)";
+function circLabel(c) {
+  const base = CIRC_BASE[c] || c; if (c === "estrada") return base;
+  const d = days().find(x => x.circ === c); return d ? `${base} · ${wd(d.date)} ${fmtD(d.date)}` : base;
+}
+function fromPousada(p) {
+  const h = S.points?.pousada; if (!h || h.lat == null || p.lat == null || p.id === "pousada") return null;
+  return distKm(h, p);
+}
+function mapPoints() {
+  return allPoints().filter(p => mapFilter === "all" ? p.circ !== "estrada" : p.circ === mapFilter || (mapFilter === "estrada" && p.id === "pousada"));
+}
+function chipsHTML() {
+  const present = new Set(allPoints().map(p => p.circ));
+  const opts = [["all", "Todos"], ...CIRC_ORDER.filter(c => present.has(c)).map(c => [c, circLabel(c)])];
+  return opts.map(([k, l]) => `<button class="fbtn" data-act="mapf" data-v="${k}" aria-pressed="${mapFilter === k}"${k !== "all" ? ` style="--c:${pcolor(k)}"` : ""}>${k !== "all" ? `<i class="dot"></i>` : ""}${esc(l)}</button>`).join("");
+}
+function listHTML() {
+  const ps = mapPoints();
+  if (!ps.length) return `<p class="muted">Nenhum ponto neste filtro. Toque em “+ Ponto” para criar.</p>`;
+  return ps.map(p => { const km = fromPousada(p);
+    return `<button class="ptrow" data-act="ptOpen" data-id="${p.id}" style="--c:${pcolor(p.circ)}">
+      <span class="ptmark">${p.order || ""}</span>
+      <span class="ptt">${esc(p.name)}<small>${esc(PTYPES[p.type] || "Ponto")}${km != null ? ` · ≈ ${num(km, km < 10 ? 1 : 0)} km de Lençóis` : ""}</small></span>
+      ${p.lat == null ? `<span class="chip s-pend">sem posição</span>` : ""}</button>`; }).join("");
+}
+function setBanner(html) { const b = $("#mapBanner"); if (b) b.innerHTML = html ? `<div class="mapbanner"><span>${html}</span><button class="btn sm" data-act="cancelPlace">Cancelar</button></div>` : ""; }
+function mapa() {
+  return `<div class="between"><h2>Mapa</h2><button class="btn sm" data-act="newPt">+ Ponto</button></div>
+  <div class="filters" id="mapChips">${chipsHTML()}</div>
+  <div id="mapBanner"></div>
+  <div id="map" class="mapbox"><p class="muted" style="padding:16px">Carregando o mapa…</p></div>
+  <p class="note">Toque num pin para ver detalhes e abrir no Google Maps. Segure o dedo no mapa (ou use “+ Ponto”) para criar um ponto. O mapa só aparece sem internet nas áreas já abertas antes; para navegar sem sinal, baixe a região no Google Maps offline.</p>
+  <div id="mapList" class="stack">${listHTML()}</div>`;
+}
+function updateMapParts() {
+  const c = $("#mapChips"), l = $("#mapList"); if (c) c.innerHTML = chipsHTML(); if (l) l.innerHTML = listHTML();
+  mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
+}
+function mountMap() {
+  ensureLeaflet().then(L => {
+    const el = $("#map"); if (route !== "mapa" || !el) return;
+    if (mapView) { try { mapView.map.remove(); } catch (e) {} }
+    el.innerHTML = "";
+    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll) });
+    mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
+    mapView.invalidate();
+  }).catch(err => { const el = $("#map"); if (el) el.innerHTML = `<p class="err" style="padding:16px">${esc(err.message)}</p>`; });
+}
+function pointSheet(id) {
+  const p = S.points?.[id]; if (!p) return;
+  const has = p.lat != null && p.lng != null, km = fromPousada({ id, ...p });
+  openSheet(`<div class="label" style="color:${pcolor(p.circ)}">${esc(circLabel(p.circ))}${p.order ? ` · ponto ${p.order}` : ""}</div>
+    <div class="row" style="flex-wrap:nowrap;align-items:center">${pinHTML(pcolor(p.circ), p.type, 0)}<h3 style="font-size:1.4rem">${esc(p.name)}</h3></div>
+    <dl class="kv"><dt>Tipo</dt><dd>${esc(PTYPES[p.type] || "Ponto")}</dd>
+      ${km != null ? `<dt>Distância</dt><dd>≈ ${num(km, km < 10 ? 1 : 0)} km de Lençóis em linha reta</dd>` : ""}
+      ${has ? `<dt>Posição</dt><dd class="num">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</dd>` : `<dt>Posição</dt><dd><span class="chip s-pend">sem posição</span></dd>`}
+      ${p.src ? `<dt>Fonte</dt><dd>${esc(p.src)}</dd>` : ""}</dl>
+    ${p.note ? `<p class="note">${esc(p.note)}</p>` : ""}
+    <div class="actions">${has ? `<a class="btn primary" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Abrir no Google Maps</a>` : `<button class="btn primary" data-s="place">Marcar no mapa</button>`}</div>
+    <div class="actions"><button class="btn" data-s="edit">Editar</button>${has ? `<button class="btn" data-s="move">Mover pin</button>` : ""}<button class="btn danger" data-s="del">Remover</button></div>`, sh => {
+    let armed = false;
+    sh.addEventListener("click", e => {
+      const b = e.target.closest("[data-s]"); if (!b) return; const a = b.dataset.s;
+      if (a === "edit") pointForm({ id, ...p });
+      else if (a === "place") { closeSheet(); if (!mapView) return; setBanner(`Toque no mapa onde fica <b>${esc(p.name)}</b>.`);
+        mapView.startPlacing(ll => { setBanner(""); store.merge("points/" + id, { lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), src: "Marcada no app" }); toast("Posição salva"); }); }
+      else if (a === "move") { closeSheet(); if (!mapView) return; setBanner(`Arraste o pin de <b>${esc(p.name)}</b> e solte no lugar certo.`);
+        mapView.startDrag(id, ll => { setBanner(""); store.merge("points/" + id, { lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6), src: "Ajustada no app" }); toast("Posição salva"); }); }
+      else if (a === "del") { if (!armed) { armed = true; b.textContent = "Toque de novo para remover"; return; } store.remove("points", id); closeSheet(); toast("Ponto removido"); }
+    });
+  });
+}
+function pointForm(p, ll) {
+  const isNew = !p;
+  p = p || { name: "", circ: mapFilter === "all" ? "chegada" : mapFilter, type: "cachoeira", order: null, note: "", lat: ll ? +ll.lat.toFixed(6) : null, lng: ll ? +ll.lng.toFixed(6) : null };
+  const coords = p.lat != null ? `${p.lat}, ${p.lng}` : "";
+  const circs = Object.entries(CIRCUITS).filter(([k]) => k !== "folga");
+  openSheet(`<h3>${isNew ? "Novo ponto" : "Editar ponto"}</h3><form id="ptF" class="stack">
+    <label class="field"><span>Nome</span><input id="ptN" value="${esc(p.name)}" required></label>
+    <div class="grid2"><label class="field"><span>Circuito</span><select id="ptC">${circs.map(([k]) => `<option value="${k}" ${p.circ === k ? "selected" : ""}>${esc(CIRC_BASE[k] || k)}</option>`).join("")}</select></label>
+    <label class="field"><span>Tipo</span><select id="ptT">${Object.entries(PTYPES).map(([k, l]) => `<option value="${k}" ${p.type === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <div class="grid2"><label class="field"><span>Ordem no dia</span><input id="ptO" inputmode="numeric" value="${p.order ?? ""}"><small>Número que aparece no pin</small></label>
+    <label class="field"><span>Coordenadas</span><input id="ptLL" value="${coords}" placeholder="-12.5583, -41.3895"><small>Cole do Google Maps, ou deixe vazio</small></label></div>
+    <label class="field"><span>Observação</span><textarea id="ptNote">${esc(p.note || "")}</textarea></label>
+    <p class="err" id="ptErr" hidden></p>
+    <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#ptF").addEventListener("submit", ev => {
+      ev.preventDefault(); const err = sh.querySelector("#ptErr"); err.hidden = true;
+      const name = sh.querySelector("#ptN").value.trim(); if (!name) return;
+      let lat = null, lng = null; const raw = sh.querySelector("#ptLL").value.trim();
+      if (raw) { const m = raw.match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
+        if (m) { lat = parseNum(m[1]); lng = parseNum(m[2]); }
+        if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) { err.hidden = false; err.textContent = "Coordenadas inválidas. Use o formato -12.5583, -41.3895."; return; } }
+      const moved = isNew || lat !== p.lat || lng !== p.lng;
+      const id = isNew ? "p" + newId() : p.id;
+      const { id: _, ...rest } = p;
+      store.put("points", id, { ...rest, name, circ: sh.querySelector("#ptC").value, type: sh.querySelector("#ptT").value,
+        order: parseNum(sh.querySelector("#ptO").value), note: sh.querySelector("#ptNote").value.trim(), lat, lng,
+        src: moved ? (lat == null ? "" : ll ? "Marcada no app" : "Informada no app") : (p.src || "") });
+      closeSheet(); toast(isNew ? "Ponto criado" : "Ponto salvo");
+    });
+  });
+}
+function dayPoints(d) {
+  const ps = allPoints().filter(p => p.circ === d.circ); if (!ps.length) return "";
+  return `<div><div class="label">No mapa</div><div class="seq" style="margin-top:4px">${ps.map(p => `<span>${p.order ? p.order + ". " : ""}${esc(p.name)}</span>`).join("")}</div>
+    <button class="btn sm" data-act="mapCirc" data-v="${d.circ}" style="margin-top:8px">Ver no mapa</button></div>`;
 }
 
 /* ---------- eventos ---------- */
@@ -516,6 +641,15 @@ $("#view").addEventListener("click", e => {
   else if (act === "addDay") { const ds = days(); const last = ds[ds.length - 1];
     const nd = { id: "d" + newId(), date: last ? addDays(last.date, 1) : S.trip.startDate, tipo: "folga", circ: "folga", title: "Dia de folga", km: null, saida: "", via: "", notes: "" };
     store.merge("trip", { days: [...S.trip.days, nd] }); openDays.add(nd.id); toast("Dia adicionado"); }
+  else if (act === "insDay") { const d = S.trip.days.find(x => x.id === id); if (!d) return;
+    const nd = { id: "d" + newId(), date: addDays(d.date, 1), tipo: "folga", circ: "folga", title: "Dia extra", km: null, saida: "", via: "", notes: "" };
+    store.merge("trip", { days: [...S.trip.days.map(x => x.date > d.date ? { ...x, date: addDays(x.date, 1) } : x), nd] });
+    openDays.add(nd.id); toast("Dia inserido · datas seguintes avançaram 1 dia"); }
+  else if (act === "mapCirc") { mapFilter = b.dataset.v; if (mapView) mapView.lastFitKey = ""; go("mapa"); }
+  else if (act === "mapf") { mapFilter = b.dataset.v; render(); }
+  else if (act === "ptOpen") { const p = S.points?.[id]; if (!p) return; if (p.lat != null && mapView) mapView.focus(id); pointSheet(id); }
+  else if (act === "newPt") pointForm(null, null);
+  else if (act === "cancelPlace") { mapView?.cancelPlacing(); setBanner(""); }
   else if (act === "vr") { viewRider = b.dataset.v; render(); }
   else if (act === "ef") { expFilter = b.dataset.v; render(); }
   else if (act === "clf") { clFilter = b.dataset.v; render(); }

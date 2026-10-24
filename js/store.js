@@ -1,13 +1,13 @@
 // Armazenamento: modo local (só no aparelho) ou nuvem (Firebase Firestore com cache offline).
 // A interface é a mesma nos dois modos, e o resto do app não precisa saber qual está ativo.
-import { TRIP_ID, TRIP_SEED, RIDERS_SEED, LODGING_SEED } from "./data.js";
+import { TRIP_ID, TRIP_SEED, RIDERS_SEED, LODGING_SEED, POINTS_SEED } from "./data.js";
 import { firebaseConfig } from "../firebase-config.js";
 
 const LS_KEY = "expedicao-chapada-v1";
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
 
 function emptyState() {
-  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {} };
+  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {}, points: {} };
 }
 function seedState() {
   const s = emptyState();
@@ -15,7 +15,13 @@ function seedState() {
   s.riders = structuredClone(RIDERS_SEED);
   s.checklist = { jaco: { items: {} }, kaique: { items: {} } };
   for (const l of LODGING_SEED) { const { id, ...rest } = l; s.lodging[id] = rest; }
+  s.points = seedPoints(); s.trip.pointsSeeded = true;
   return s;
+}
+function seedPoints() {
+  const out = {};
+  for (const p of POINTS_SEED) { const { id, ...rest } = p; out[id] = rest; }
+  return out;
 }
 function isObj(v) { return v && typeof v === "object" && !Array.isArray(v); }
 function deepMerge(target, patch) {
@@ -51,6 +57,7 @@ function localStore() {
       cb = onChange;
       try { state = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { state = null; }
       if (!state || !state.trip) { state = seedState(); persist(); }
+      if (!state.trip.pointsSeeded) { state.points = { ...seedPoints(), ...(state.points || {}) }; state.trip.pointsSeeded = true; persist(); }
       addEventListener("online", () => { status.online = true; emit(); });
       addEventListener("offline", () => { status.online = false; emit(); });
       emit();
@@ -94,22 +101,31 @@ function cloudStore() {
     for (const l of LODGING_SEED) { const { id, ...rest } = l; b.set(fs.doc(db, ...base, "lodging", id), rest); }
     await b.commit();
   }
+  let pointsSeeding = false;
+  async function seedPointsIfNeeded() {
+    if (pointsSeeding || !state.trip || state.trip.pointsSeeded) return; pointsSeeding = true;
+    const b = fs.writeBatch(db);
+    for (const p of POINTS_SEED) { const { id, ...rest } = p; b.set(fs.doc(db, ...base, "points", id), rest, { merge: true }); }
+    b.set(refFor("trip"), { pointsSeeded: true }, { merge: true });
+    await b.commit();
+  }
   function listen() {
     unsubs.forEach(u => u()); unsubs = [];
     const opt = { includeMetadataChanges: true };
     unsubs.push(fs.onSnapshot(refFor("trip"), opt, s => {
       pendingBy.trip = s.metadata.hasPendingWrites;
-      if (s.exists()) { state.trip = s.data(); status.ready = true; }
+      if (s.exists()) { state.trip = s.data(); status.ready = true; if (!s.metadata.fromCache && !state.trip.pointsSeeded) seedPointsIfNeeded().catch(() => {}); }
       else if (!s.metadata.fromCache) seedIfNeeded().catch(e => { status.error = e.message; emit(); });
       emit();
     }, e => { status.error = e.code === "permission-denied" ? "Sem permissão: confira o e-mail nas regras do Firestore." : e.message; emit(); }));
-    const cols = [["riders", "riders"], ["checklist", "checklist"], ["meta", null], ["expenses", "expenses"], ["lodging", "lodging"]];
+    const cols = [["riders", "riders"], ["checklist", "checklist"], ["meta", null], ["expenses", "expenses"], ["lodging", "lodging"], ["points", "points"]];
     for (const [col, target] of cols) {
       unsubs.push(fs.onSnapshot(fs.collection(db, ...base, col), opt, qs => {
         pendingBy[col] = qs.metadata.hasPendingWrites;
         const map = {};
         qs.forEach(d => { map[d.id] = d.data(); });
         if (target) state[target] = map; else state.pend = map.pend || { done: {} };
+        if (col === "points" && !qs.metadata.fromCache) seedPointsIfNeeded().catch(e => { status.error = e.message; emit(); });
         emit();
       }, () => {}));
     }
