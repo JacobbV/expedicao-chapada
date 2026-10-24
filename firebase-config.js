@@ -12,10 +12,10 @@
 // };
 
 export const firebaseConfig = {
-    apiKey: "...",
-    authDomain: "...",
-    projectId: "...",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "..."
+  apiKey: "AIzaSyD8rFwx4K_aI5i0vYDSt6fxg06Yo0uKsYQ",
+  authDomain: "expedicao-chapada.firebaseapp.com",
+  projectId: "expedicao-chapada",
+  storageBucket: "expedicao-chapada.firebasestorage.app",
+  messagingSenderId: "417083759808",
+  appId: "1:417083759808:web:ab5e072c6859f92fe2a125"
 };

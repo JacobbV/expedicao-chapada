@@ -4,7 +4,7 @@ service cloud.firestore {
     // Troque pelos e-mails das contas criadas em Authentication.
     function membro() {
       return request.auth != null
-        && request.auth.token.email in ['ramesonjaco@gmail.com', 'EMAIL_DO_KAIQUE@gmail.com'];
+        && request.auth.token.email in ['SEU_EMAIL@gmail.com', 'EMAIL_DO_KAIQUE@gmail.com'];
     }
     match /trips/{tripId}/{document=**} {
       allow read, write: if membro();
