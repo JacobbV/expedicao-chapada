@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.5.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.6.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -27,10 +27,10 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Gastos** | Duas abas: **Gastos da viagem** (os dois veem; cada gasto pode ser dividido) e **Meus gastos** (privada: o total de tudo o que você gastou). Detalhes em [Gastos](#gastos) |
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
-| **Menu ☰ → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
+| **Menu ☰ → Pilotos** | Consumo e tanque de cada moto (usados na autonomia e no combustível), redes e contatos de cada um e, para o admin, **+ Adicionar piloto** |
 | **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
 | **Menu ☰ → Aparência** | Atalho para trocar entre **Automático** (segue o celular), **☀ Dia** e **☾ Noite**. A escolha fica salva em cada aparelho |
-| **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, criador e contatos (só aparecem os preenchidos) e créditos. Todos veem; só o admin edita |
+| **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, **redes e contatos de cada piloto** (só aparecem os preenchidos) e créditos. Todos veem; os textos só o admin edita, e cada piloto edita os próprios contatos |
 
 ## Mapa
 
@@ -122,7 +122,9 @@ O **Jacó é o admin**. O **Kaique** (e qualquer outro piloto) é usuário: vê 
 | Mapa: criar, mover, editar e remover pontos | Edita | Só vê (pode ligar pontos e abrir no Google Maps) |
 | Hospedagem e pendências | Edita | Só vê |
 | Gasolina e fim das férias (Ajustes) | Edita | Só vê |
-| Sobre: textos e contatos | Edita | Só vê |
+| Sobre: textos | Edita | Só vê |
+| Redes e contatos | Os seus (e pode ajustar os dos outros) | Os seus |
+| Adicionar ou remover piloto | Sim | Não |
 | Próprio checklist | Edita o seu | Edita o seu |
 | Próprio perfil e moto (consumo, tanque) | Edita (e pode ajustar o do outro) | Edita o seu |
 | Gastos da viagem | Cria e altera os que pagou | Cria e altera os que pagou |
@@ -159,10 +161,13 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 ### Atualizar as regras (a partir da v1.5.0)
 A v1.5.0 trouxe os papéis de admin e usuário. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
 
-### Adicionar um piloto (ex.: Kaique)
-1. **Authentication → Usuários → Adicionar usuário**, com o e-mail e uma senha.
-2. **Firestore → Regras**: troque o e-mail modelo dele na função `pilotos()` pelo real e clique em **Publicar**.
-3. Mande para ele o link, o e-mail e a senha. No primeiro acesso, ele escolhe o próprio perfil.
+### Adicionar um piloto
+1. **No app (admin):** Menu ☰ → Pilotos e motos → **+ Adicionar piloto**. Preencha nome, moto, consumo e tanque. O app mostra o **ID do perfil** (ex.: `joaopedro`).
+2. **Firebase → Authentication → Usuários → Adicionar usuário**, com o e-mail e uma senha.
+3. **Firestore → Regras**: na função `pilotos()`, acrescente uma linha `'email@dele.com': 'idDoPerfil',` e clique em **Publicar**. Para o Kaique, é só trocar o e-mail modelo pelo real.
+4. Mande para ele o link, o e-mail e a senha. No primeiro acesso, ele escolhe o próprio perfil.
+
+Piloto novo começa com o checklist em *Avaliar*, entra na divisão dos gastos marcados como *dividir* (dividido igual entre todos) e aparece no Sobre.
 
 ### Como o offline funciona
 - O primeiro login precisa de internet. Depois disso o app abre sem sinal.
@@ -191,7 +196,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.5.0** | 24/10/2026 | Papéis **admin** (Jacó) e **usuário** (Kaique): o usuário vê tudo e só altera o próprio checklist, perfil e gastos, com a regra do Firestore garantindo no servidor; Sobre ganha **Quem somos**, **Nossa história**, **Objetivos e sonhos** e **Sobre o app**, com textos editáveis pelo admin |
+| **1.6.0** | 24/10/2026 | **Redes e contatos por piloto**: cada um edita os próprios e eles aparecem separados no Sobre; admin pode **adicionar e remover pilotos** (nome, moto, consumo, tanque) e vê o ID do perfil para as regras |
+| 1.5.0 | 24/10/2026 | Papéis **admin** (Jacó) e **usuário** (Kaique): o usuário vê tudo e só altera o próprio checklist, perfil e gastos, com a regra do Firestore garantindo no servidor; Sobre ganha **Quem somos**, **Nossa história**, **Objetivos e sonhos** e **Sobre o app**, com textos editáveis pelo admin |
 | 1.4.1 | 24/10/2026 | Tema **Dia / Noite / Automático** no menu ☰ e em Ajustes, salvo por aparelho e aplicado antes da tela aparecer; aviso do navegador sobre a tag de app instalável corrigido |
 | 1.4.0 | 24/10/2026 | Aba privada vira **Meus gastos**, com o total geral (preparação + o que você pagou na viagem); chave **Exibir para o grupo** em cada gasto da preparação; valores sempre com centavos; casinha na pousada da lista do mapa; tela **Sobre** no menu com versão, criador, contatos editáveis e créditos |
 | 1.3.0 | 24/10/2026 | Botão **Ligar pontos** no mapa: liga cada circuito saindo e voltando à pousada e mostra os km por circuito e o total (pela estrada via OSRM, ou em linha reta a pé/sem internet). README com sumário, seções de Gastos e Checklist e este histórico |

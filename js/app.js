@@ -32,7 +32,7 @@ function toast(msg) {
 }
 
 /* ---------- identidade ---------- */
-const riderIds = () => Object.keys(S.riders || {}).sort((a, b) => (a === "jaco" ? -1 : b === "jaco" ? 1 : a.localeCompare(b)));
+const riderIds = () => Object.keys(S.riders || {}).sort((a, b) => (a === "jaco" ? -1 : b === "jaco" ? 1 : ((S.riders[a].created || 0) - (S.riders[b].created || 0)) || a.localeCompare(b)));
 const rname = id => S.riders?.[id]?.name || id;
 function me() {
   if (ST.mode === "local") { try { const m = localStorage.getItem("me"); if (m && S.riders[m]) return m; } catch (e) {} return null; }
@@ -42,7 +42,7 @@ function me() {
 const canEdit = rid => ST.mode === "local" || rid === me();
 // Admin (Jacó) mexe no app geral; os outros só nos próprios dados
 const isAdmin = () => ST.mode === "local" || me() === (S.trip?.admin || "jaco");
-const ADMIN_ACTS = new Set(["editStory", "editDay", "insDay", "shiftDates", "addDay", "newLodge", "editLodge", "lst", "newPend", "delPend", "newPt", "editAbout"]);
+const ADMIN_ACTS = new Set(["newRider", "editStory", "editDay", "insDay", "shiftDates", "addDay", "newLodge", "editLodge", "lst", "newPend", "delPend", "newPt", "editAbout"]);
 const adminNote = what => isAdmin() ? "" : `<p class="note">🔒 Só o ${esc(rname(S.trip?.admin || "jaco"))} (admin) altera ${what}. Você vê tudo para consulta.</p>`;
 
 /* ---------- cálculos ---------- */
@@ -499,7 +499,7 @@ function openMenu() {
       <a href="#sobre">Sobre <span class="muted">versão ${esc(self.APP_VERSION || "?")}</span></a>
     </div>
     <div class="stack" style="gap:6px"><div class="label">Aparência</div>${themeSeg()}</div>
-    <p class="muted" style="font-size:.8rem">Criado por ${esc(about().author)} · © 2026</p></nav></div>`;
+    <p class="muted" style="font-size:.8rem">© 2026 ${esc(about().author)}</p></nav></div>`;
   const bg = $("#layer").firstElementChild;
   bg.addEventListener("click", e => { if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = ""; });
 }
@@ -577,26 +577,38 @@ function pendForm() {
 }
 
 function pilotos() {
-  return `${backLink}<h2>Pilotos e motos</h2>${riderIds().map(id => { const r = S.riders[id], f = fuelPlan(id);
-    return `<div class="card stack"><div class="between"><h3>${esc(r.name)}</h3>${id === me() ? `<span class="chip s-ok">você</span>` : ""}</div>
+  return `${backLink}<div class="between"><h2>Pilotos e motos</h2>${isAdmin() ? `<button class="btn sm" data-act="newRider">+ Adicionar piloto</button>` : ""}</div>
+  ${riderIds().map(id => { const r = S.riders[id], f = fuelPlan(id);
+    return `<div class="card stack"><div class="between"><h3>${esc(r.name)}</h3><span>${id === (S.trip?.admin || "jaco") ? `<span class="chip s-est">admin</span> ` : ""}${id === me() ? `<span class="chip s-ok">você</span>` : ""}</span></div>
       <dl class="kv"><dt>Moto</dt><dd>${esc(r.moto || "—")}</dd><dt>Consumo</dt><dd class="num">${r.consumo ? num(r.consumo, 1) + " km/L" : `<span class="chip s-pend">informar</span>`}</dd>
       <dt>Tanque</dt><dd class="num">${r.tanque ? num(r.tanque, 1) + " L" : "—"}</dd>
       ${f?.autonomia ? `<dt>Autonomia</dt><dd class="num">≈ ${num(f.autonomia)} km por tanque</dd>` : ""}
       ${f ? `<dt>Na viagem</dt><dd class="num">${num(f.litros)} L · ${brl0(f.custo)}</dd>` : ""}
-      ${ST.mode === "cloud" ? `<dt>Conta</dt><dd>${esc(r.email || "não ligada")}</dd>` : ""}</dl>
-      ${canEdit(id) ? `<button class="btn sm" data-act="editRider" data-id="${id}" style="justify-self:start">Editar</button>` : ""}</div>`; }).join("")}
-    <p class="note">A autonomia é teórica (tanque × consumo). Com bagagem e serra ela cai; planeje parar a cada 200–250 km.</p>`;
+      ${ST.mode === "cloud" ? `<dt>Conta</dt><dd>${esc(r.email || "não ligada")}</dd>` : ""}
+      ${isAdmin() ? `<dt>ID do perfil</dt><dd class="num">${esc(id)}</dd>` : ""}</dl>
+      <div class="row">${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editRider" data-id="${id}">Editar</button>` : ""}${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}">Redes e contatos</button>` : ""}</div></div>`; }).join("")}
+    <p class="note">A autonomia é teórica (tanque × consumo). Com bagagem e serra ela cai; planeje parar a cada 200–250 km.</p>
+    ${isAdmin() && ST.mode === "cloud" ? `<p class="note">Para um piloto novo entrar no app: crie a conta dele em Firebase → Authentication e acrescente o e-mail com o <b>ID do perfil</b> na função <code>pilotos()</code> das regras do Firestore (README).</p>` : ""}`;
 }
+const slug = t => (t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20) || "piloto";
 function riderForm(id) {
-  const r = S.riders[id];
-  openSheet(`<h3>${esc(r.name)}</h3><form id="rF" class="stack">
+  const isNew = !id; const r = isNew ? { name: "", moto: "", consumo: null, tanque: null } : S.riders[id];
+  const removable = !isNew && isAdmin() && id !== (S.trip?.admin || "jaco");
+  openSheet(`<h3>${isNew ? "Novo piloto" : esc(r.name)}</h3><form id="rF" class="stack">
     <label class="field"><span>Nome</span><input id="rN" value="${esc(r.name)}" required></label>
-    <label class="field"><span>Moto</span><input id="rM" value="${esc(r.moto || "")}"></label>
+    <label class="field"><span>Moto</span><input id="rM" value="${esc(r.moto || "")}" placeholder="Ex.: Honda XRE 300"></label>
     <div class="grid2"><label class="field"><span>Consumo (km/L)</span><input id="rC" inputmode="decimal" value="${r.consumo ?? ""}"><small>Média na estrada</small></label>
     <label class="field"><span>Tanque (L)</span><input id="rT" inputmode="decimal" value="${r.tanque ?? ""}"></label></div>
-    <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    <div class="actions">${removable ? `<button type="button" class="btn danger" id="rDel">Remover piloto</button>` : `<button type="button" class="btn" data-close="1">Cancelar</button>`}<button class="btn primary">Salvar</button></div></form>`, sh => {
     sh.querySelector("#rF").addEventListener("submit", ev => { ev.preventDefault();
-      store.merge("riders/" + id, { name: $("#rN").value.trim() || r.name, moto: $("#rM").value.trim(), consumo: parseNum($("#rC").value), tanque: parseNum($("#rT").value) }); closeSheet(); toast("Salvo"); });
+      const name = sh.querySelector("#rN").value.trim(); if (!name) return;
+      const data = { name, moto: sh.querySelector("#rM").value.trim(), consumo: parseNum(sh.querySelector("#rC").value), tanque: parseNum(sh.querySelector("#rT").value) };
+      if (isNew) { let nid = slug(name), i = 2; while (S.riders[nid]) nid = slug(name) + i++;
+        store.put("riders", nid, { ...data, email: "", created: Date.now() }); closeSheet(); toast(`${name} adicionado · ID do perfil: ${nid}`); }
+      else { store.merge("riders/" + id, data); closeSheet(); toast("Salvo"); } });
+    const del = sh.querySelector("#rDel"); let armed = false;
+    del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para remover"; return; }
+      store.remove("riders", id); closeSheet(); toast("Piloto removido"); });
   });
 }
 
@@ -831,24 +843,47 @@ const SOCIAL = [
   ["whatsapp", "WhatsApp", '<path d="M5 19l1.2-3.6A8 8 0 1 1 9 18.5z"/><path d="M9.5 9.5c.5 2 2 3.5 4 4"/>', v => { const d = v.replace(/\D/g, ""); return "https://wa.me/" + (d.startsWith("55") ? d : "55" + d); }],
   ["email", "E-mail", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>', v => "mailto:" + v],
 ];
+function socialOf(id) {
+  const r = S.riders?.[id] || {}; const own = r.social || {};
+  // contatos antigos (v1.4/1.5) ficavam no Sobre geral: valem para o admin até serem editados
+  if (!r.social && id === (S.trip?.admin || "jaco")) { const a = about(); const o = {}; SOCIAL.forEach(([k]) => o[k] = a[k] || ""); return o; }
+  return own;
+}
+function socialLinks(id) {
+  const so = socialOf(id);
+  return SOCIAL.filter(([k]) => (so[k] || "").trim()).map(([k, label, icon, href]) => `<a class="social" href="${esc(href(so[k].trim()))}" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}<small>${esc(so[k].trim())}</small></span></a>`).join("");
+}
 function sobre() {
   const a = about();
-  const links = SOCIAL.filter(([k]) => (a[k] || "").trim()).map(([k, label, icon, href]) => `<a class="social" href="${esc(href(a[k].trim()))}" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}<small>${esc(a[k].trim())}</small></span></a>`).join("");
   return `${backLink}<h2>Sobre</h2>
   <div class="hero"><div class="label" style="color:var(--asphalt-muted)">Aplicativo da viagem</div><div class="big" style="font-size:2.6rem">Expedição <span>Chapada</span></div>
     <div class="sub">Versão ${esc(self.APP_VERSION || "?")} · Catolé do Rocha-PB → Lençóis-BA · janeiro de 2027</div></div>
   ${STORY.filter(([k]) => (a[k] || "").trim()).map(([k, t]) => `<div class="card stack story"><h3>${t}</h3>${esc(a[k]).split(/\n+/).map(par => `<p>${par}</p>`).join("")}
     ${k === "nos" ? `<div class="pilots">${riderIds().map(id => `<div class="pilot"><b>${esc(rname(id))}</b><small>${esc(S.riders[id].moto || "")}</small></div>`).join("")}</div>` : ""}</div>`).join("")}
   ${canEditAbout() ? `<button class="btn sm" data-act="editStory" style="justify-self:start">Editar textos</button>` : ""}
-  <div class="card stack"><h3>Criador</h3><p>Criado por <b>${esc(a.author)}</b>.</p>
-    ${links ? `<div class="socials">${links}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
-    ${canEditAbout() ? `<button class="btn sm" data-act="editAbout" style="justify-self:start">Editar contatos</button>` : ""}</div>
+  <h3 style="margin-top:6px">Redes e contatos</h3>
+  ${riderIds().map(id => { const l = socialLinks(id);
+    return `<div class="card stack"><div class="between"><h3>${esc(rname(id))}</h3><span class="muted" style="font-size:.85rem">${esc(S.riders[id].moto || "")}</span></div>
+      ${l ? `<div class="socials">${l}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
+      ${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}" style="justify-self:start">${id === me() ? "Editar meus contatos" : "Editar contatos"}</button>` : ""}</div>`; }).join("")}
   <div class="card stack"><h3>Créditos</h3>
     <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
     <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
 }
+function socialForm(id) {
+  const so = socialOf(id);
+  openSheet(`<h3>Contatos de ${esc(rname(id))}</h3><p class="muted" style="font-size:.85rem">Só aparecem os que forem preenchidos. Pode usar o link completo ou só o @usuário.</p>
+    <form id="soF" class="stack">
+      ${SOCIAL.map(([k, label]) => `<label class="field"><span>${label}</span><input id="so${k}" value="${esc(so[k] || "")}" placeholder="${k === "whatsapp" ? "DDD + número, ex.: 83 99999-0000" : k === "email" ? "nome@email.com" : k === "github" ? "https://github.com/usuario" : "@usuario"}" ${k === "email" ? 'type="email"' : ""}></label>`).join("")}
+      <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#soF").addEventListener("submit", ev => { ev.preventDefault();
+      const out = {}; SOCIAL.forEach(([k]) => out[k] = sh.querySelector("#so" + k).value.trim());
+      store.merge("riders/" + id, { social: out }); closeSheet(); toast("Contatos salvos"); });
+  });
+}
+
 function storyForm() {
   const a = about();
   openSheet(`<h3>Textos do Sobre</h3><p class="muted" style="font-size:.85rem">Todos veem; só o admin edita. Deixe um campo vazio para esconder a seção.</p>
@@ -857,19 +892,6 @@ function storyForm() {
     sh.querySelector("#stF").addEventListener("submit", ev => { ev.preventDefault();
       const out = {}; STORY.forEach(([k]) => out[k] = sh.querySelector("#st" + k).value.trim());
       store.merge("trip", { about: out }); closeSheet(); toast("Textos salvos"); });
-  });
-}
-function aboutForm() {
-  const a = about();
-  openSheet(`<h3>Contatos do Sobre</h3><p class="muted" style="font-size:.85rem">Só aparecem os que você preencher. Pode usar o link completo ou só o @usuário.</p>
-    <form id="abF" class="stack">
-      <label class="field"><span>Nome do criador</span><input id="abauthor" value="${esc(a.author)}"></label>
-      ${SOCIAL.map(([k, label]) => `<label class="field"><span>${label}</span><input id="ab${k}" value="${esc(a[k] || "")}" placeholder="${k === "whatsapp" ? "DDD + número, ex.: 83 99999-0000" : k === "email" ? "seu@email.com" : k === "github" ? "https://github.com/usuario" : "@usuario"}" ${k === "email" ? 'type="email"' : ""}></label>`).join("")}
-      <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
-    sh.querySelector("#abF").addEventListener("submit", ev => { ev.preventDefault();
-      const out = { author: sh.querySelector("#abauthor").value.trim() || "Jacó" };
-      SOCIAL.forEach(([k]) => out[k] = sh.querySelector("#ab" + k).value.trim());
-      store.merge("trip", { about: out }); closeSheet(); toast("Contatos salvos"); });
   });
 }
 
@@ -904,7 +926,8 @@ $("#view").addEventListener("click", e => {
   else if (act === "st") { const rid = viewRider; if (!canEdit(rid)) return; const s = b.dataset.s;
     store.merge("checklist/" + rid, { items: { [id]: s === baseStatus(rid, id) ? null : s } }); }
   else if (act === "openMenu") openMenu();
-  else if (act === "editAbout") { if (canEditAbout()) aboutForm(); }
+  else if (act === "editSocial") { if (canEdit(id) || isAdmin()) socialForm(id); }
+  else if (act === "newRider") { if (isAdmin()) riderForm(null); }
   else if (act === "editStory") { if (canEditAbout()) storyForm(); }
   else if (act === "gtab") { gastosTab = b.dataset.v; render(); }
   else if (act === "newExp") expForm(null, b.dataset.kind);
