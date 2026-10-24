@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Troque pelos e-mails das contas criadas em Authentication.
+    function membro() {
+      return request.auth != null
+        && request.auth.token.email in ['SEU_EMAIL@gmail.com', 'EMAIL_DO_KAIQUE@gmail.com'];
+    }
+    match /trips/{tripId}/{document=**} {
+      allow read, write: if membro();
+    }
+    match /trips/{tripId} {
+      allow read, write: if membro();
+    }
+  }
+}

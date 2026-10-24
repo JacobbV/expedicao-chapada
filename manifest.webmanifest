@@ -1,0 +1,17 @@
+{
+  "name": "Expedição Chapada Diamantina 2027",
+  "short_name": "Chapada",
+  "description": "Roteiro, checklist, gastos e hospedagem da viagem de moto à Chapada Diamantina.",
+  "lang": "pt-BR",
+  "start_url": "./#inicio",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#23282a",
+  "theme_color": "#23282a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
