@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.3.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.4.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -13,6 +13,7 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 - [Sincronização (Firebase)](#sincronização-firebase)
 - [Estrutura](#estrutura)
 - [Histórico de versões](#histórico-de-versões)
+- [Autor](#autor)
 
 ## O que tem
 
@@ -22,11 +23,12 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Roteiro** | Dias com o circuito de cada um, em cores. Permite editar data, saída, km e observações, trocar o circuito de um dia, **inserir um dia depois de outro** (as datas seguintes avançam) ou **remover** (as seguintes recuam), mudar a data de saída de tudo e abrir os pontos do dia no mapa |
 | **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo, filtrar por circuito e **ligar os pontos** para ver os km de cada circuito |
 | **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
-| **Gastos** | Duas abas: **Gastos da viagem** (os dois veem; cada gasto pode ser dividido) e **Minha preparação** (privada, cada conta vê só os seus). Detalhes em [Gastos](#gastos) |
+| **Gastos** | Duas abas: **Gastos da viagem** (os dois veem; cada gasto pode ser dividido) e **Meus gastos** (privada: o total de tudo o que você gastou). Detalhes em [Gastos](#gastos) |
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
 | **Menu ☰ → Ajustes** | Preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
+| **Menu ☰ → Sobre** | Nome do app, versão, criador, contatos (GitHub, Instagram, Facebook, TikTok, WhatsApp, e-mail; só aparecem os preenchidos) e créditos |
 
 ## Mapa
 
@@ -82,15 +84,17 @@ As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada 
 
 ## Gastos
 
-| Aba | Quem vê | Categorias | Divide? |
+| Aba | Quem vê | O que soma | Categorias |
 |---|---|---|---|
-| **Gastos da viagem** | Os dois | Combustível, Hospedagem, Alimentação, Pedágio, Passeios e guias, Estacionamento, Imprevistos na estrada, Manutenção / conserto, Equipamentos, Ferramentas, Outros | Sim, marcando **Dividir entre os dois** |
-| **Minha preparação** | Só a própria conta | Moto e manutenção, Equipamentos de proteção, Bagagem, Ferramentas e imprevistos, Navegação e estrada, Roupas e higiene, Trilhas e cachoeiras, Fotos e comunicação, Outros | Não |
+| **Gastos da viagem** | Os dois | Gastos lançados na viagem + gastos da preparação que o dono escolheu **exibir** | Combustível, Hospedagem, Alimentação, Pedágio, Passeios e guias, Estacionamento, Imprevistos na estrada, Manutenção / conserto, Equipamentos, Ferramentas, Outros |
+| **Meus gastos** | Só a própria conta | **Total geral**: a sua preparação + o que você pagou na viagem | Moto e manutenção, Equipamentos de proteção, Bagagem, Ferramentas e imprevistos, Navegação e estrada, Roupas e higiene, Trilhas e cachoeiras, Fotos e comunicação, Outros |
 
-- **Acerto de contas:** soma só os gastos da viagem marcados como divididos, mostra quanto cabe a cada um e quem deve a quem.
-- **Sua parte na viagem:** o que você pagou sozinho mais a sua metade dos divididos.
+- **Exibir para o grupo:** cada gasto da preparação tem essa chave. Desligada (padrão), o gasto é privado (🔒). Ligada, ele também aparece em *Gastos da viagem* com o selo *exibido da preparação*. Desligar remove de lá na hora.
+- **Dividir entre os dois:** vale para os gastos da viagem. Só eles entram no **acerto de contas**. Os gastos exibidos da preparação não entram.
+- **Sua parte na viagem:** o que você pagou sozinho na viagem mais a sua metade dos divididos.
+- **Centavos:** todos os valores aparecem exatamente como foram lançados (ex.: R$ 75,72).
 - **Combustível:** informando litros e R$/L, o valor é calculado sozinho. O preço padrão vem de Ajustes.
-- **Gastos antigos:** gastos de manutenção ou equipamento lançados antes da v1.2.0 foram movidos sozinhos para *Minha preparação* de quem pagou.
+- **Privacidade de verdade:** os gastos da preparação ficam em `trips/chapada2027/private/<conta>/prep`, que a regra do Firestore deixa só o dono ler. Quando você exibe um gasto, uma cópia dele vai para a área compartilhada.
 
 ## Checklist
 
@@ -166,7 +170,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.3.0** | 24/10/2026 | Botão **Ligar pontos** no mapa: liga cada circuito saindo e voltando à pousada e mostra os km por circuito e o total (pela estrada via OSRM, ou em linha reta a pé/sem internet). README com sumário, seções de Gastos e Checklist e este histórico |
+| **1.4.0** | 24/10/2026 | Aba privada vira **Meus gastos**, com o total geral (preparação + o que você pagou na viagem); chave **Exibir para o grupo** em cada gasto da preparação; valores sempre com centavos; casinha na pousada da lista do mapa; tela **Sobre** no menu com versão, criador, contatos editáveis e créditos |
+| 1.3.0 | 24/10/2026 | Botão **Ligar pontos** no mapa: liga cada circuito saindo e voltando à pousada e mostra os km por circuito e o total (pela estrada via OSRM, ou em linha reta a pé/sem internet). README com sumário, seções de Gastos e Checklist e este histórico |
 | 1.2.2 | 24/10/2026 | Gastos da viagem ganham **Manutenção / conserto**, **Equipamentos** e **Ferramentas**; preparação ganha **Outros**; o formulário diz em qual aba o gasto entra |
 | 1.2.1 | 24/10/2026 | Menu **☰** no topo (Hospedagem, Pendências, Pilotos, Ajustes) no lugar do “Mais” embaixo; barra de baixo com 5 itens; com internet o app sempre busca os arquivos novos, o que evita versões misturadas |
 | 1.2.0 | 24/10/2026 | Gastos em duas abas: **Gastos da viagem** (compartilhados, com dividir) e **Minha preparação** (privada por conta, com regra nova do Firestore); migração automática dos gastos antigos; checklist com **Pronto** no lugar de “Tenho” e legenda dos status |
@@ -175,6 +180,12 @@ icons/                ícones
 | 1.0.2 | 24/10/2026 | Configuração real do Firebase; e-mails retirados do modelo de regras |
 | 1.0.1 | 24/10/2026 | Sincronização com Firebase ligada |
 | 1.0.0 | 24/10/2026 | Primeira versão: roteiro de 12 a 18/01, circuitos, checklist por piloto, gastos com acerto, hospedagem, pendências, modo offline e instalação como app |
+
+## Autor
+
+Criado por **Jacó**, de Catolé do Rocha-PB · [github.com/JacobbV](https://github.com/JacobbV)
+
+© 2026 Jacó. Os contatos que aparecem no app são editados em **Menu ☰ → Sobre → Editar contatos**.
 
 ## Avisos
 

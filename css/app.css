@@ -233,3 +233,11 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 @media (prefers-reduced-motion:no-preference){.drawer{animation:slidein .2s ease-out}@keyframes slidein{from{transform:translateX(40px);opacity:.6}to{transform:none;opacity:1}}}
 .rdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:0}
 #linkBtn[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+/* Sobre */
+.socials{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.social{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--fg);background:var(--bg);min-width:0}
+.social svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--stripe);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.social span{font-weight:700;min-width:0}
+.social small{display:block;font-weight:500;color:var(--muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptmark svg{vertical-align:-2px}

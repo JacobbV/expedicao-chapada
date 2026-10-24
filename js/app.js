@@ -15,7 +15,7 @@ const openDays = new Set();
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const brl = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const brl0 = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const brl0 = v => brl(v); // valores sempre com centavos
 const num = (v, d = 0) => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: d, minimumFractionDigits: d });
 const WD = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const pad = n => String(n).padStart(2, "0");
@@ -52,7 +52,7 @@ function progress(rid) {
 }
 const expenses = () => Object.entries(S.expenses || {}).map(([id, e]) => ({ id, ...e })).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0));
 function settlement() {
-  const ids = riderIds(), list = expenses().filter(e => e.shared && e.cat in TRIP_CATS);
+  const ids = riderIds(), list = expenses().filter(e => e.shared && !e.fromPrep && e.cat in TRIP_CATS);
   const total = list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const share = ids.length ? total / ids.length : 0;
   const bal = {}; ids.forEach(id => bal[id] = -share);
@@ -130,7 +130,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre };
 
 function render() {
   if (!S || !ST) return;
@@ -189,7 +189,7 @@ function inicio() {
   const m = me() || riderIds()[0], other = riderIds().find(i => i !== m);
   const pm = progress(m), po = other ? progress(other) : null;
   const doneP = Object.keys(S.pend?.done || {}).length, totalP = PEND.length + Object.keys(S.pend?.custom || {}).length;
-  const myExp = myTripCost(m), myPrep = sumAmt(prepExpenses());
+  const myExp = myTripCost(m), myPrep = sumAmt(prepExpenses()) + sumAmt(tripExpenses().filter(e => e.rider === m && !e.fromPrep));
   const fuel = riderIds().map(id => { const f = fuelPlan(id); return `<tr><td>${esc(rname(id))}</td><td class="r num">${f ? num(f.litros) + " L" : "—"}</td><td class="r num">${f ? brl0(f.custo) : `<a href="#pilotos">informar consumo</a>`}</td></tr>`; }).join("");
 
   return `
@@ -209,7 +209,7 @@ function inicio() {
     <div class="tablebox" style="margin-top:8px"><table><thead><tr><th>Piloto</th><th class="r">Litros</th><th class="r">Custo</th></tr></thead><tbody>${fuel}</tbody></table></div>
     <p class="note" style="margin-top:10px">Estimativa pela soma dos km do roteiro e pelo consumo de cada moto. O preço da gasolina muda em Ajustes.</p></div>
   <div class="card"><h3>Acerto de contas</h3><p class="settle" style="margin-top:6px">${esc(settleText())}</p>
-    <p class="muted" style="font-size:.85rem;margin-top:6px">🔒 Sua preparação (só você vê): <a href="#gastos" data-act="gtab" data-v="prep">${brl0(myPrep)}</a></p></div>`;
+    <p class="muted" style="font-size:.85rem;margin-top:6px">🔒 Meus gastos (só você vê): <a href="#gastos" data-act="gtab" data-v="prep">${brl(myPrep)}</a></p></div>`;
 }
 
 /* ---------- ROTEIRO ---------- */
@@ -329,36 +329,51 @@ function checklist() {
 
 /* ---------- GASTOS ---------- */
 const isTripCat = c => c in TRIP_CATS;
-const tripExpenses = () => expenses().filter(e => isTripCat(e.cat));
+// Gastos da viagem = os lançados na viagem + os da preparação que o dono escolheu exibir
+const tripExpenses = () => expenses().filter(e => isTripCat(e.cat) || e.fromPrep);
 const prepExpenses = () => Object.entries(S.prep || {}).map(([id, e]) => ({ id, ...e })).sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0));
 const sumAmt = l => l.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-function myTripCost(rid) { // o que cabe a cada um: o que pagou sozinho + metade dos divididos
-  const l = tripExpenses(), n = riderIds().length || 1;
+const byDate = (a, b) => (b.date || "").localeCompare(a.date || "") || (b.created || 0) - (a.created || 0);
+function myTripCost(rid) { // o que cabe a cada um: o que pagou sozinho + metade dos divididos (exibidos da preparação não entram)
+  const l = tripExpenses().filter(e => !e.fromPrep), n = riderIds().length || 1;
   return sumAmt(l.filter(e => !e.shared && e.rider === rid)) + sumAmt(l.filter(e => e.shared)) / n;
 }
-function catBars(list, cats) {
+function catBars(list) {
   const byCat = {}; list.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + (Number(e.amount) || 0));
   if (!Object.keys(byCat).length) return "";
   const max = Math.max(1, ...Object.values(byCat));
-  return `<div class="card stack"><h3>Por categoria</h3>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="catrow"><span>${esc(cats[k] || CATEGORIES[k] || k)}</span><span class="b"><i style="width:${v / max * 100}%"></i></span><span class="num">${brl0(v)}</span></div>`).join("")}</div>`;
+  return `<div class="card stack"><h3>Por categoria</h3>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="catrow"><span>${esc(CATEGORIES[k] || k)}</span><span class="b"><i style="width:${v / max * 100}%"></i></span><span class="num">${brl(v)}</span></div>`).join("")}</div>`;
 }
-function expRows(list, kind) {
-  return list.map(e => `<button class="exp" data-act="editExp" data-kind="${kind}" data-id="${e.id}">
+// kind: "trip" (gasto da viagem), "prep" (meu, privado); src marca de onde veio na lista Meus gastos
+function expRows(list, view) {
+  return list.map(e => {
+    const kind = e._src || (e.fromPrep ? "prep" : "trip");
+    const tags = [e.shared ? `<span class="chip s-est">dividido</span>` : "",
+      view === "trip" && e.fromPrep ? `<span class="chip s-mute">exibido da preparação</span>` : "",
+      view === "mine" && kind === "prep" ? (e.show ? `<span class="chip s-ok">exibido</span>` : `<span class="chip s-mute">🔒 privado</span>`) : "",
+      view === "mine" && kind === "trip" ? `<span class="chip s-est">da viagem</span>` : ""].join(" ");
+    return `<button class="exp" data-act="editExp" data-kind="${kind}" data-id="${e.id}">
       <span class="t">${esc(e.desc || CATEGORIES[e.cat] || "Gasto")}</span><span class="v">${brl(e.amount)}</span>
-      <span class="m">${e.date ? wd(e.date) + " " + fmtD(e.date) + " · " : ""}${esc(CATEGORIES[e.cat] || "")}${kind === "trip" ? " · " + esc(rname(e.rider)) : ""}${e.liters ? ` · ${num(e.liters, 2)} L a ${brl(e.ppl)}` : ""}</span>
-      <span class="m">${e.shared ? `<span class="chip s-est">dividido</span>` : ""}</span></button>`).join("");
+      <span class="m">${e.date ? wd(e.date) + " " + fmtD(e.date) + " · " : ""}${esc(CATEGORIES[e.cat] || "")}${view === "trip" ? " · " + esc(rname(e.rider)) : ""}${e.liters ? ` · ${num(e.liters, 2)} L a ${brl(e.ppl)}` : ""}</span>
+      <span class="m">${tags}</span></button>`; }).join("");
 }
 function gastos() {
-  const tabs = `<div class="seg tabs2" role="tablist"><button data-act="gtab" data-v="trip" aria-pressed="${gastosTab === "trip"}">Gastos da viagem</button><button data-act="gtab" data-v="prep" aria-pressed="${gastosTab === "prep"}">Minha preparação</button></div>`;
+  const tabs = `<div class="seg tabs2" role="tablist"><button data-act="gtab" data-v="trip" aria-pressed="${gastosTab === "trip"}">Gastos da viagem</button><button data-act="gtab" data-v="prep" aria-pressed="${gastosTab === "prep"}">Meus gastos</button></div>`;
   if (gastosTab === "prep") {
-    const list = prepExpenses(), tot = sumAmt(list);
+    const m = me() || riderIds()[0];
+    const prep = prepExpenses().map(e => ({ ...e, _src: "prep" }));
+    const trip = tripExpenses().filter(e => e.rider === m && !e.fromPrep).map(e => ({ ...e, _src: "trip" }));
+    const list = [...prep, ...trip].sort(byDate);
     const err = ST.mode === "cloud" && ST.prepError ? `<div class="warnbox">${esc(ST.prepError)}</div>` : "";
+    const other = rname(riderIds().find(i => i !== me()) || "");
     return `<h2>Gastos</h2>${tabs}${err}
-    <div class="infobox">🔒 <b>Só você vê esta aba.</b> ${ST.mode === "cloud" ? `O ${esc(rname(riderIds().find(i => i !== me()) || ""))} não tem acesso aos seus gastos de preparação, e você não vê os dele.` : "No modo local ela fica só neste aparelho."}</div>
-    <div class="stats"><div class="stat"><div class="v" style="font-size:1.6rem">${brl0(tot)}</div><div class="k">sua preparação</div></div>
-      <div class="stat"><div class="v" style="font-size:1.6rem">${list.length}</div><div class="k">${list.length === 1 ? "gasto lançado" : "gastos lançados"}</div></div></div>
-    ${catBars(list, PREP_CATS)}
-    <div class="stack">${list.length ? expRows(list, "prep") : `<div class="card"><p class="muted">Nada lançado ainda. Use “+ Gasto” para registrar revisão, peças, pneus, equipamento, bagagem…</p></div>`}</div>
+    <div class="infobox">🔒 <b>Só você vê esta aba.</b> Ela soma tudo o que você gastou: a preparação e o que você pagou na viagem. ${ST.mode === "cloud" ? `Para mostrar um gasto da preparação ao ${esc(other)}, abra o gasto e ligue <b>Exibir para o grupo</b>.` : "No modo local ela fica só neste aparelho."}</div>
+    <div class="stats"><div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(list))}</div><div class="k">total geral</div></div>
+      <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(prep))}</div><div class="k">preparação</div></div>
+      <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(trip))}</div><div class="k">pago por você na viagem</div></div>
+      <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(prep.filter(e => e.show)))}</div><div class="k">exibido para o grupo</div></div></div>
+    ${catBars(list)}
+    <div class="stack">${list.length ? expRows(list, "mine") : `<div class="card"><p class="muted">Nada lançado ainda. Use “+ Gasto” para registrar revisão, peças, pneus, equipamento, bagagem…</p></div>`}</div>
     <button class="fab" data-act="newExp" data-kind="prep">+ Gasto</button>`;
   }
   const all = tripExpenses(); const list = expFilter === "todos" ? all : all.filter(e => e.rider === expFilter);
@@ -367,41 +382,45 @@ function gastos() {
   return `<h2>Gastos</h2>${tabs}
   <div class="between"><span class="muted" style="font-size:.88rem">Os dois veem. Marque “dividir” no que for dos dois.</span>${riderSeg("ef")}</div>
   <div class="stats">
-    <div class="stat"><div class="v" style="font-size:1.6rem">${brl0(sumAmt(list))}</div><div class="k">${expFilter === "todos" ? "total da viagem" : "pago por " + esc(rname(expFilter))}</div></div>
-    <div class="stat"><div class="v" style="font-size:1.6rem">${brl0(sumAmt(list.filter(e => e.shared)))}</div><div class="k">dividido</div></div>
-    <div class="stat"><div class="v" style="font-size:1.6rem">${brl0(myTripCost(me() || riderIds()[0]))}</div><div class="k">sua parte na viagem</div></div>
-    <div class="stat"><div class="v" style="font-size:1.6rem">${num(fuelL, 1)} L</div><div class="k">combustível lançado</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(list))}</div><div class="k">${expFilter === "todos" ? "total exibido" : "pago por " + esc(rname(expFilter))}</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(list.filter(e => e.shared)))}</div><div class="k">dividido</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${brl(myTripCost(me() || riderIds()[0]))}</div><div class="k">sua parte na viagem</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${num(fuelL, 2)} L</div><div class="k">combustível lançado</div></div>
   </div>
   <div class="card"><h3>Acerto de contas</h3><p class="settle" style="margin-top:6px">${esc(settleText())}</p>
     ${st.total ? `<p class="muted" style="font-size:.85rem;margin-top:4px">Divididos: ${brl(st.total)} · ${brl(st.share)} para cada um</p>` : ""}</div>
-  ${catBars(list, TRIP_CATS)}
+  ${catBars(list)}
   <div class="stack">${list.length ? expRows(list, "trip") : `<div class="card"><p class="muted">Nenhum gasto da viagem ainda. Use “+ Gasto” para combustível, pousada, comida, pedágio, guia…</p></div>`}</div>
   <button class="fab" data-act="newExp" data-kind="trip">+ Gasto</button>`;
 }
 function expForm(e, kind) {
   const isNew = !e; const m = me() || riderIds()[0]; const prep = kind === "prep";
   const cats = prep ? PREP_CATS : TRIP_CATS;
-  e = e || { rider: m, cat: prep ? "moto" : "combustivel", date: todayISO(), amount: "", desc: "", shared: false, liters: "", ppl: S.trip.gasPrice };
-  const readonly = !prep && !isNew && !canEdit(e.rider);
+  e = e || { rider: m, cat: prep ? "moto" : "combustivel", date: todayISO(), amount: "", desc: "", shared: false, show: false, liters: "", ppl: S.trip.gasPrice };
+  // um gasto exibido da preparação de outra pessoa abre só para leitura
+  const othersPrep = prep && !isNew && e.fromPrep && e.rider !== m;
+  const readonly = othersPrep || (!prep && !isNew && !canEdit(e.rider));
   const riders = riderIds().filter(id => ST.mode === "local" || id === m || id === e.rider);
+  const catList = othersPrep ? { [e.cat]: CATEGORIES[e.cat] || e.cat } : cats;
   openSheet(`<h3>${isNew ? "Novo gasto" : readonly ? "Gasto" : "Editar gasto"}</h3>
-   <p class="muted" style="font-size:.85rem">${prep ? "🔒 Preparação: só você vê. Para o que comprar ou consertar antes de sair." : "Gasto da viagem: os dois veem. Para o que acontecer durante a viagem; o que for da preparação vai na aba Minha preparação."}</p>
+   <p class="muted" style="font-size:.85rem">${othersPrep ? `Gasto da preparação que ${esc(rname(e.rider))} escolheu exibir.` : prep ? "🔒 Meus gastos: só você vê, a menos que ligue “Exibir para o grupo”." : "Gasto da viagem: os dois veem."}</p>
    <form id="expF" class="stack">
     <fieldset ${readonly ? "disabled" : ""} style="border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0">
     <div class="grid2">${prep ? "" : `<label class="field"><span>Quem pagou</span><select id="eRider">${riders.map(id => `<option value="${id}" ${e.rider === id ? "selected" : ""}>${esc(rname(id))}</option>`).join("")}</select></label>`}
-    <label class="field"><span>Categoria</span><select id="eCat">${Object.entries(cats).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <label class="field"><span>Categoria</span><select id="eCat">${Object.entries(catList).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
     <label class="field"><span>Descrição</span><input id="eDesc" value="${esc(e.desc)}" placeholder="${prep ? "Ex.: pneu dianteiro, kit relação, luvas" : "Ex.: posto em Salgueiro, pousada, almoço"}"></label>
     <div id="fuelBox" class="grid2" ${e.cat === "combustivel" ? "" : "hidden"}>
       <label class="field"><span>Litros</span><input id="eL" inputmode="decimal" value="${e.liters ?? ""}"></label>
       <label class="field"><span>R$ por litro</span><input id="ePpl" inputmode="decimal" value="${e.ppl ?? ""}"></label></div>
     <div class="grid2"><label class="field"><span>Valor (R$)</span><input id="eAmt" inputmode="decimal" value="${e.amount ?? ""}" required></label>
     <label class="field"><span>Data</span><input id="eDate" type="date" value="${e.date || ""}"></label></div>
-    ${prep ? "" : `<label class="check"><input type="checkbox" id="eShared" ${e.shared ? "checked" : ""}> Dividir entre os dois</label>`}
+    ${prep ? (othersPrep ? "" : `<label class="check"><input type="checkbox" id="eShow" ${e.show ? "checked" : ""}> Exibir para o grupo <small class="muted" style="font-weight:500">(aparece em Gastos da viagem)</small></label>`)
+      : `<label class="check"><input type="checkbox" id="eShared" ${e.shared ? "checked" : ""}> Dividir entre os dois</label>`}
     </fieldset>
     <p class="err" id="eErr" hidden></p>
     <div class="actions">${isNew || readonly ? `<button type="button" class="btn" data-close="1">${readonly ? "Fechar" : "Cancelar"}</button>` : `<button type="button" class="btn danger" id="eDel">Excluir</button>`}${readonly ? "" : `<button class="btn primary">Salvar</button>`}</div>
    </form>`, sh => {
-    const cat = sh.querySelector("#eCat"), L = sh.querySelector("#eL"), P = sh.querySelector("#ePpl"), A = sh.querySelector("#eAmt"), shared = sh.querySelector("#eShared");
+    const cat = sh.querySelector("#eCat"), L = sh.querySelector("#eL"), P = sh.querySelector("#ePpl"), A = sh.querySelector("#eAmt"), shared = sh.querySelector("#eShared"), show = sh.querySelector("#eShow");
     let autoAmt = isNew;
     const recalc = () => { const l = parseNum(L.value), p = parseNum(P.value); if (autoAmt && cat.value === "combustivel" && l && p) A.value = (l * p).toFixed(2); };
     L.addEventListener("input", recalc); P.addEventListener("input", recalc); A.addEventListener("input", () => { autoAmt = false; });
@@ -410,27 +429,43 @@ function expForm(e, kind) {
       ev.preventDefault(); const amt = parseNum(A.value);
       if (!amt || amt <= 0) { const er = sh.querySelector("#eErr"); er.hidden = false; er.textContent = "Informe o valor do gasto."; return; }
       const id = isNew ? newId() : e.id;
-      const data = { cat: cat.value, desc: sh.querySelector("#eDesc").value.trim(), amount: amt, date: sh.querySelector("#eDate").value,
+      const data = { cat: cat.value, desc: sh.querySelector("#eDesc").value.trim(), amount: Math.round(amt * 100) / 100, date: sh.querySelector("#eDate").value,
         liters: cat.value === "combustivel" ? parseNum(L.value) : null, ppl: cat.value === "combustivel" ? parseNum(P.value) : null, created: e.created || Date.now() };
-      if (prep) store.putPrep(id, data);
-      else store.put("expenses", id, { ...data, rider: sh.querySelector("#eRider").value, shared: shared.checked });
+      if (prep) {
+        const vis = !!show?.checked;
+        store.putPrep(id, { ...data, show: vis });
+        // cópia pública só com o que o dono decidiu mostrar
+        if (vis) store.put("expenses", id, { ...data, rider: m, shared: false, fromPrep: true });
+        else if (S.expenses?.[id]?.fromPrep) store.remove("expenses", id);
+      } else store.put("expenses", id, { ...data, rider: sh.querySelector("#eRider").value, shared: shared.checked });
       closeSheet(); toast(isNew ? "Gasto lançado" : "Gasto salvo");
     });
     const del = sh.querySelector("#eDel"); let armed = false;
     del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; }
-      prep ? store.removePrep(e.id) : store.remove("expenses", e.id); closeSheet(); toast("Gasto excluído"); });
+      if (prep) { store.removePrep(e.id); if (S.expenses?.[e.id]?.fromPrep) store.remove("expenses", e.id); }
+      else store.remove("expenses", e.id);
+      closeSheet(); toast("Gasto excluído"); });
   });
 }
-// Gastos antigos de manutenção/equipamento (v1.0/1.1) passam para a preparação privada de quem pagou
+function openExpense(id, kind) {
+  if (kind === "prep") {
+    const own = S.prep?.[id];
+    if (own) return expForm({ id, ...own }, "prep");
+    const pub = S.expenses?.[id]; if (pub) return expForm({ id, ...pub }, "prep"); // exibido por outra pessoa
+    return;
+  }
+  const t = S.expenses?.[id]; if (t) expForm({ id, ...t }, "trip");
+}
+// Gastos antigos de manutenção/equipamento (v1.0/1.1) passam para os gastos privados de quem pagou
 let migrating = false;
 function migrateLegacy() {
   if (migrating) return; const m = me(); if (!m) return;
   if (ST.mode === "cloud" && (!ST.uid || ST.prepError)) return;
-  const old = expenses().filter(e => e.rider === m && !isTripCat(e.cat));
+  const old = expenses().filter(e => e.rider === m && !isTripCat(e.cat) && !e.fromPrep);
   if (!old.length) return; migrating = true;
   Promise.all(old.map(e => { const { id, rider, shared, ...rest } = e;
     return store.putPrep(id, { ...rest, cat: LEGACY_PREP[e.cat] || (e.cat in PREP_CATS ? e.cat : "moto") }).then(() => store.remove("expenses", id)); }))
-    .then(() => toast(`${old.length} ${old.length === 1 ? "gasto foi" : "gastos foram"} para Minha preparação`))
+    .then(() => toast(`${old.length} ${old.length === 1 ? "gasto foi" : "gastos foram"} para Meus gastos`))
     .finally(() => { migrating = false; });
 }
 
@@ -455,8 +490,9 @@ function openMenu() {
       <a href="#pendencias">Pendências <span class="muted">${open} abertas</span></a>
       <a href="#pilotos">Pilotos e motos <span class="muted">consumo e autonomia</span></a>
       <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a>
+      <a href="#sobre">Sobre <span class="muted">versão ${esc(self.APP_VERSION || "?")}</span></a>
     </div>
-    <p class="muted" style="font-size:.8rem">Versão ${esc(self.APP_VERSION || "?")}</p></nav></div>`;
+    <p class="muted" style="font-size:.8rem">Criado por ${esc(about().author)} · © 2026</p></nav></div>`;
   const bg = $("#layer").firstElementChild;
   bg.addEventListener("click", e => { if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = ""; });
 }
@@ -608,7 +644,7 @@ function listHTML() {
   if (!ps.length) return `<p class="muted">Nenhum ponto neste filtro. Toque em “+ Ponto” para criar.</p>`;
   return ps.map(p => { const km = fromPousada(p);
     return `<button class="ptrow" data-act="ptOpen" data-id="${p.id}" style="--c:${pcolor(p.circ)}">
-      <span class="ptmark">${p.order || ""}</span>
+      <span class="ptmark">${p.order ? p.order : p.type === "pousada" ? `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M2 8l6-5 6 5v6H2z"/><path d="M7 14v-4h2v4"/></svg>` : ""}</span>
       <span class="ptt">${esc(p.name)}<small>${esc(PTYPES[p.type] || "Ponto")}${km != null ? ` · ≈ ${num(km, km < 10 ? 1 : 0)} km de Lençóis` : ""}</small></span>
       ${p.lat == null ? `<span class="chip s-pend">sem posição</span>` : ""}</button>`; }).join("");
 }
@@ -752,6 +788,47 @@ function dayPoints(d) {
     <button class="btn sm" data-act="mapCirc" data-v="${d.circ}" style="margin-top:8px">Ver no mapa</button></div>`;
 }
 
+/* ---------- SOBRE ---------- */
+const ABOUT_DEFAULT = { author: "Jacó", github: "https://github.com/JacobbV", instagram: "", facebook: "", tiktok: "", whatsapp: "", email: "" };
+const about = () => ({ ...ABOUT_DEFAULT, ...(S.trip?.about || {}) });
+const canEditAbout = () => ST.mode === "local" || me() === "jaco";
+const SOCIAL = [
+  ["github", "GitHub", '<path d="M8 6L3 12l5 6M16 6l5 6-5 6"/>', v => /^https?:/.test(v) ? v : "https://github.com/" + v.replace(/^@/, "")],
+  ["instagram", "Instagram", '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.5"/>', v => /^https?:/.test(v) ? v : "https://instagram.com/" + v.replace(/^@/, "")],
+  ["facebook", "Facebook", '<circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M14 14c3 0 6 1.5 6 4.5"/>', v => /^https?:/.test(v) ? v : "https://facebook.com/" + v.replace(/^@/, "")],
+  ["tiktok", "TikTok", '<path d="M10 20a4 4 0 1 1 0-8M10 20a4 4 0 0 0 4-4V4c1 2 3 3.5 6 3.5"/>', v => /^https?:/.test(v) ? v : "https://www.tiktok.com/@" + v.replace(/^@/, "")],
+  ["whatsapp", "WhatsApp", '<path d="M5 19l1.2-3.6A8 8 0 1 1 9 18.5z"/><path d="M9.5 9.5c.5 2 2 3.5 4 4"/>', v => { const d = v.replace(/\D/g, ""); return "https://wa.me/" + (d.startsWith("55") ? d : "55" + d); }],
+  ["email", "E-mail", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>', v => "mailto:" + v],
+];
+function sobre() {
+  const a = about();
+  const links = SOCIAL.filter(([k]) => (a[k] || "").trim()).map(([k, label, icon, href]) => `<a class="social" href="${esc(href(a[k].trim()))}" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}<small>${esc(a[k].trim())}</small></span></a>`).join("");
+  return `${backLink}<h2>Sobre</h2>
+  <div class="hero"><div class="label" style="color:var(--asphalt-muted)">Aplicativo da viagem</div><div class="big" style="font-size:2.6rem">Expedição <span>Chapada</span></div>
+    <div class="sub">Versão ${esc(self.APP_VERSION || "?")} · Catolé do Rocha-PB → Lençóis-BA · janeiro de 2027</div></div>
+  <div class="card stack"><h3>Criador</h3><p>Criado por <b>${esc(a.author)}</b>.</p>
+    ${links ? `<div class="socials">${links}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
+    ${canEditAbout() ? `<button class="btn sm" data-act="editAbout" style="justify-self:start">Editar contatos</button>` : ""}</div>
+  <div class="card stack"><h3>Créditos</h3>
+    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
+    <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
+  <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
+}
+function aboutForm() {
+  const a = about();
+  openSheet(`<h3>Contatos do Sobre</h3><p class="muted" style="font-size:.85rem">Só aparecem os que você preencher. Pode usar o link completo ou só o @usuário.</p>
+    <form id="abF" class="stack">
+      <label class="field"><span>Nome do criador</span><input id="abauthor" value="${esc(a.author)}"></label>
+      ${SOCIAL.map(([k, label]) => `<label class="field"><span>${label}</span><input id="ab${k}" value="${esc(a[k] || "")}" placeholder="${k === "whatsapp" ? "DDD + número, ex.: 83 99999-0000" : k === "email" ? "seu@email.com" : k === "github" ? "https://github.com/usuario" : "@usuario"}" ${k === "email" ? 'type="email"' : ""}></label>`).join("")}
+      <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#abF").addEventListener("submit", ev => { ev.preventDefault();
+      const out = { author: sh.querySelector("#abauthor").value.trim() || "Jacó" };
+      SOCIAL.forEach(([k]) => out[k] = sh.querySelector("#ab" + k).value.trim());
+      store.merge("trip", { about: out }); closeSheet(); toast("Contatos salvos"); });
+  });
+}
+
 /* ---------- eventos ---------- */
 $("#view").addEventListener("click", e => {
   const vr = e.target.closest("[data-vr]"); if (vr) viewRider = vr.dataset.vr;
@@ -782,9 +859,10 @@ $("#view").addEventListener("click", e => {
   else if (act === "st") { const rid = viewRider; if (!canEdit(rid)) return; const s = b.dataset.s;
     store.merge("checklist/" + rid, { items: { [id]: s === baseStatus(rid, id) ? null : s } }); }
   else if (act === "openMenu") openMenu();
+  else if (act === "editAbout") { if (canEditAbout()) aboutForm(); }
   else if (act === "gtab") { gastosTab = b.dataset.v; render(); }
   else if (act === "newExp") expForm(null, b.dataset.kind);
-  else if (act === "editExp") expForm(b.dataset.kind === "prep" ? prepExpenses().find(x => x.id === id) : expenses().find(x => x.id === id), b.dataset.kind);
+  else if (act === "editExp") openExpense(id, b.dataset.kind);
   else if (act === "lst") { const l = S.lodging[id]; const s = b.dataset.s; if (!l || l.status === s) return;
     if (s !== "opcao") for (const [oid, o] of Object.entries(S.lodging)) if (oid !== id && o.etapa === l.etapa && o.status !== "opcao") store.put("lodging", oid, { ...o, status: "opcao" });
     store.put("lodging", id, { ...l, status: s }); }
