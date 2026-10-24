@@ -210,12 +210,14 @@ export const ETAPAS = {
 // Gastos da viagem: os dois veem; cada gasto pode ser dividido ou não
 export const TRIP_CATS = {
   combustivel: "Combustível", hospedagem: "Hospedagem", alimentacao: "Alimentação", pedagio: "Pedágio",
-  passeio: "Passeios e guias", estacionamento: "Estacionamento", imprevisto: "Imprevistos na estrada", outros: "Outros",
+  passeio: "Passeios e guias", estacionamento: "Estacionamento", imprevisto: "Imprevistos na estrada",
+  conserto: "Manutenção / conserto", equipviagem: "Equipamentos", ferramviagem: "Ferramentas", outros: "Outros",
 };
 // Preparação: privado, cada conta vê só os seus (mesmos grupos do checklist)
 export const PREP_CATS = {
   moto: "Moto e manutenção", protecao: "Equipamentos de proteção", bagagem: "Bagagem", ferramentas: "Ferramentas e imprevistos",
   navegacao: "Navegação e estrada", roupas: "Roupas e higiene", trilhas: "Trilhas e cachoeiras", fotos: "Fotos e comunicação",
+  outrosprep: "Outros",
 };
 // Categorias antigas (v1.0/1.1) que viram preparação
 export const LEGACY_PREP = { manutencao: "moto", equipamento: "protecao" };

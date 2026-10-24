@@ -383,7 +383,7 @@ function expForm(e, kind) {
   const readonly = !prep && !isNew && !canEdit(e.rider);
   const riders = riderIds().filter(id => ST.mode === "local" || id === m || id === e.rider);
   openSheet(`<h3>${isNew ? "Novo gasto" : readonly ? "Gasto" : "Editar gasto"}</h3>
-   <p class="muted" style="font-size:.85rem">${prep ? "🔒 Preparação: só você vê." : "Gasto da viagem: os dois veem."}</p>
+   <p class="muted" style="font-size:.85rem">${prep ? "🔒 Preparação: só você vê. Para o que comprar ou consertar antes de sair." : "Gasto da viagem: os dois veem. Para o que acontecer durante a viagem; o que for da preparação vai na aba Minha preparação."}</p>
    <form id="expF" class="stack">
     <fieldset ${readonly ? "disabled" : ""} style="border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0">
     <div class="grid2">${prep ? "" : `<label class="field"><span>Quem pagou</span><select id="eRider">${riders.map(id => `<option value="${id}" ${e.rider === id ? "selected" : ""}>${esc(rname(id))}</option>`).join("")}</select></label>`}
