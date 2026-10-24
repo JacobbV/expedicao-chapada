@@ -11,4 +11,11 @@
 //   appId: "1:123456789:web:abc123"
 // };
 
-export const firebaseConfig = null;
+export const firebaseConfig = {
+    apiKey: "...",
+    authDomain: "...",
+    projectId: "...",
+    storageBucket: "...",
+    messagingSenderId: "...",
+    appId: "..."
+};

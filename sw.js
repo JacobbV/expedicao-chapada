@@ -1,6 +1,6 @@
 // Service worker: guarda o app no aparelho para abrir sem internet.
 // Ao publicar uma versão nova, aumente o número de VERSION.
-const VERSION = "v1.0.0";
+const VERSION = "v1.0.1";
 const SHELL = `shell-${VERSION}`;
 const RUNTIME = "runtime-v1";
 const FILES = [
