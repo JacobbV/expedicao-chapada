@@ -123,7 +123,7 @@ export const TRIP_SEED = {
 
 export const STATUS = {
   avaliar: { label: "Avaliar", short: "Avaliar" },
-  tenho:   { label: "Tenho", short: "Tenho" },
+  tenho:   { label: "Pronto", short: "Pronto" },
   prov:    { label: "Providenciar", short: "Provid." },
   rev:     { label: "Revisar", short: "Revisar" },
   nao:     { label: "Não preciso", short: "Não" },
@@ -207,7 +207,16 @@ export const ETAPAS = {
   petrolina_volta: { name: "Petrolina · volta", dayIndex: 5 },
 };
 
-export const CATEGORIES = {
+// Gastos da viagem: os dois veem; cada gasto pode ser dividido ou não
+export const TRIP_CATS = {
   combustivel: "Combustível", hospedagem: "Hospedagem", alimentacao: "Alimentação", pedagio: "Pedágio",
-  passeio: "Passeios e guias", equipamento: "Equipamento", manutencao: "Manutenção", outros: "Outros",
+  passeio: "Passeios e guias", estacionamento: "Estacionamento", imprevisto: "Imprevistos na estrada", outros: "Outros",
 };
+// Preparação: privado, cada conta vê só os seus (mesmos grupos do checklist)
+export const PREP_CATS = {
+  moto: "Moto e manutenção", protecao: "Equipamentos de proteção", bagagem: "Bagagem", ferramentas: "Ferramentas e imprevistos",
+  navegacao: "Navegação e estrada", roupas: "Roupas e higiene", trilhas: "Trilhas e cachoeiras", fotos: "Fotos e comunicação",
+};
+// Categorias antigas (v1.0/1.1) que viram preparação
+export const LEGACY_PREP = { manutencao: "moto", equipamento: "protecao" };
+export const CATEGORIES = { ...TRIP_CATS, ...PREP_CATS, manutencao: "Moto e manutenção", equipamento: "Equipamentos de proteção" };

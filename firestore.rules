@@ -1,16 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Troque pelos e-mails das contas criadas em Authentication.
+    // MODELO: troque pelos e-mails reais SÓ no console do Firebase, nunca aqui (repositório público).
     function membro() {
       return request.auth != null
         && request.auth.token.email in ['SEU_EMAIL@gmail.com', 'EMAIL_DO_KAIQUE@gmail.com'];
     }
-    match /trips/{tripId}/{document=**} {
-      allow read, write: if membro();
-    }
+    // Documento da viagem
     match /trips/{tripId} {
       allow read, write: if membro();
+    }
+    // Dados compartilhados: roteiro, checklist, gastos da viagem, hospedagem, mapa…
+    match /trips/{tripId}/{col}/{docId} {
+      allow read, write: if membro() && col != 'private';
+    }
+    // Preparação: cada conta lê e escreve só a própria área
+    match /trips/{tripId}/private/{uid}/{document=**} {
+      allow read, write: if membro() && request.auth.uid == uid;
     }
   }
 }

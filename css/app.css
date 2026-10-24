@@ -215,3 +215,9 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut
 .ptt{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .ptt small{display:block;font-weight:500;color:var(--muted);font-size:.8rem}
 .nav a{font-size:.66rem}
+
+/* Gastos: abas e legenda */
+.tabs2{display:grid;grid-template-columns:1fr 1fr;width:100%}
+.tabs2 button{padding:11px 8px;font-size:.85rem}
+.legend summary{cursor:pointer;font-weight:700}
+.legend .kv{grid-template-columns:max-content minmax(0,1fr);align-items:baseline}

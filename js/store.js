@@ -7,7 +7,7 @@ const LS_KEY = "expedicao-chapada-v1";
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
 
 function emptyState() {
-  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {}, points: {} };
+  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {}, points: {}, prep: {} };
 }
 function seedState() {
   const s = emptyState();
@@ -57,6 +57,7 @@ function localStore() {
       cb = onChange;
       try { state = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { state = null; }
       if (!state || !state.trip) { state = seedState(); persist(); }
+      state.prep ||= {};
       if (!state.trip.pointsSeeded) { state.points = { ...seedPoints(), ...(state.points || {}) }; state.trip.pointsSeeded = true; persist(); }
       addEventListener("online", () => { status.online = true; emit(); });
       addEventListener("offline", () => { status.online = false; emit(); });
@@ -65,6 +66,9 @@ function localStore() {
     merge(key, patch) { const cur = structuredClone(getByKey(state, key) || {}); setByKey(state, key, deepMerge(cur, patch)); persist(); emit(); return Promise.resolve(); },
     put(col, id, data) { state[col][id] = data; persist(); emit(); return Promise.resolve(); },
     remove(col, id) { delete state[col][id]; persist(); emit(); return Promise.resolve(); },
+    // Preparação: no modo local fica só neste aparelho
+    putPrep(id, data) { state.prep[id] = data; persist(); emit(); return Promise.resolve(); },
+    removePrep(id) { delete state.prep[id]; persist(); emit(); return Promise.resolve(); },
     exportJSON() { return JSON.stringify(state, null, 2); },
     importJSON(txt) { const s = JSON.parse(txt); if (!s.trip) throw new Error("Arquivo sem dados da viagem"); state = s; persist(); emit(); },
     resetAll() { state = seedState(); persist(); emit(); },
@@ -74,7 +78,7 @@ function localStore() {
 /* ---------- modo nuvem (Firebase) ---------- */
 function cloudStore() {
   const state = emptyState();
-  const status = { mode: "cloud", online: navigator.onLine, pending: false, user: null, ready: false, authReady: false, error: "" };
+  const status = { mode: "cloud", online: navigator.onLine, pending: false, user: null, uid: null, ready: false, authReady: false, error: "", prepError: "" };
   const pendingBy = {};
   let cb, fs, db, auth, authMod, unsubs = [], seeded = false;
   const emit = () => { status.pending = Object.values(pendingBy).some(Boolean); cb && cb(state, status); };
@@ -129,6 +133,11 @@ function cloudStore() {
         emit();
       }, () => {}));
     }
+    // Preparação: área privada de cada conta (trips/<viagem>/private/<uid>/prep)
+    unsubs.push(fs.onSnapshot(fs.collection(db, ...base, "private", status.uid, "prep"), opt, qs => {
+      pendingBy.prep = qs.metadata.hasPendingWrites; status.prepError = "";
+      const map = {}; qs.forEach(d => { map[d.id] = d.data(); }); state.prep = map; emit();
+    }, e => { status.prepError = e.code === "permission-denied" ? "Sem permissão para a área privada: publique as regras novas do Firestore (README)." : e.message; emit(); }));
   }
   const w = p => p.catch(e => { status.error = e.message; emit(); });
   return {
@@ -146,7 +155,8 @@ function cloudStore() {
         auth = aMod.getAuth(app);
         await aMod.setPersistence(auth, aMod.browserLocalPersistence);
         aMod.onAuthStateChanged(auth, u => {
-          status.user = u ? u.email : null; status.authReady = true;
+          status.user = u ? u.email : null; status.uid = u ? u.uid : null; status.authReady = true;
+          state.prep = {};
           if (u) listen(); else { unsubs.forEach(x => x()); unsubs = []; }
           emit();
         });
@@ -159,6 +169,8 @@ function cloudStore() {
     merge(key, patch) { return w(fs.setDoc(refFor(key), toFs(patch), { merge: true })); },
     put(col, id, data) { return w(fs.setDoc(fs.doc(db, ...base, col, id), data)); },
     remove(col, id) { return w(fs.deleteDoc(fs.doc(db, ...base, col, id))); },
+    putPrep(id, data) { return w(fs.setDoc(fs.doc(db, ...base, "private", status.uid, "prep", id), data)); },
+    removePrep(id) { return w(fs.deleteDoc(fs.doc(db, ...base, "private", status.uid, "prep", id))); },
     exportJSON() { return JSON.stringify(state, null, 2); },
   };
 }

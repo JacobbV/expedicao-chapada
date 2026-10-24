@@ -11,8 +11,8 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Início** | Contagem regressiva, folga até o fim das férias (avisa se o roteiro passar da data), próximo dia, progresso do checklist dos dois, combustível previsto e acerto de contas |
 | **Roteiro** | Dias com o circuito de cada um, em cores. Permite editar data, saída, km e observações, trocar o circuito de um dia, **inserir um dia depois de outro** (as datas seguintes avançam) ou **remover** (as seguintes recuam), mudar a data de saída de tudo e abrir os pontos do dia no mapa |
 | **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo e filtrar por circuito |
-| **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro |
-| **Gastos** | Cada um lança os seus. No abastecimento, o valor é calculado por litros × R$/L. Os gastos compartilhados entram no acerto de contas |
+| **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
+| **Gastos** | Duas abas. **Gastos da viagem** são vistos pelos dois (combustível, hospedagem, alimentação, pedágio, passeios e guias, estacionamento, imprevistos), e cada gasto pode ser dividido ou não; os divididos entram no acerto de contas. **Minha preparação** é **privada**: cada conta vê só os seus gastos (moto e manutenção, proteção, bagagem, ferramentas, navegação, roupas, trilhas, fotos) |
 | **Mais → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Mais → Pendências** | Lista por prioridade, com pendências próprias |
 | **Mais → Pilotos** | Consumo e tanque de cada moto, usados no cálculo de autonomia e combustível |
@@ -77,7 +77,11 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 - **Authentication → E-mail/senha**, com o cadastro público **desligado** (Configurações → Ações do usuário → *Ativar criação* desmarcado). As contas são criadas à mão em **Usuários**.
 - **Firestore** em `southamerica-east1`, com os dados em `trips/chapada2027` e subcoleções `riders`, `checklist`, `meta`, `expenses`, `lodging` e `points`.
 - **Regras:** o arquivo [`firestore.rules`](firestore.rules) é só um **modelo**, com e-mails falsos. A regra que vale é a publicada no console, com os e-mails reais. Não coloque e-mails reais neste repositório público.
+- **Gastos da preparação** ficam em `trips/chapada2027/private/<id da conta>/prep`. A regra deixa cada conta ler só a própria área, então nem o outro piloto consegue ver, mesmo mexendo no código.
 - **Configuração do app web:** [`firebase-config.js`](firebase-config.js). A `apiKey` pode ficar pública, porque quem protege os dados são as regras.
+
+### Atualizar as regras (a partir da v1.2.0)
+A v1.2.0 criou a área privada da preparação. Copie o conteúdo de `firestore.rules`, cole em **Firestore → Regras** no console, troque os dois e-mails pelos reais e clique em **Publicar**. Sem isso, a aba *Minha preparação* mostra um aviso de permissão.
 
 ### Adicionar um piloto (ex.: Kaique)
 1. **Authentication → Usuários → Adicionar usuário**, com o e-mail e uma senha.
@@ -96,7 +100,7 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 index.html            casca do app
 css/app.css           visual (claro e escuro)
 js/version.js         versão do app (troque a cada publicação)
-js/data.js            dados-base: roteiro, circuitos, pontos do mapa, checklist, pendências
+js/data.js            dados-base: roteiro, circuitos, pontos do mapa, checklist, categorias de gasto, pendências
 js/store.js           armazenamento: modo local ou Firebase com cache offline
 js/map.js             mapa (Leaflet + OpenStreetMap) e desenho dos pins
 js/app.js             telas e interações
