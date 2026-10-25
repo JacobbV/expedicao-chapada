@@ -486,3 +486,8 @@ details.more>summary::before{content:"▸ "}
 details.more[open]>summary::before{content:"▾ "}
 details.more[open]{display:grid;gap:8px}
 .day details.more>summary{display:block;padding:0;grid-template-columns:none;text-align:left}
+.sec{display:grid;gap:5px}
+.via{font-size:.92rem;line-height:1.55}
+.via .arr{color:var(--stripe);font-weight:700}
+.fuel1>div+div{margin-top:2px}
+.hoje .fuel1{display:block}

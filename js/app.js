@@ -264,14 +264,15 @@ function hojeCard(ds, t) {
   const d = ds[i], c = CIRCUITS[d.circ] || CIRCUITS.estrada, nx = ds[i + 1];
   const ln = lodgingFor(i, ds), arr = arrivalOf(d);
   const facts = [d.saida ? `🕓 <b>${d.saida.replace(":", "h")}</b>${arr ? ` → <b>~${arr}</b>` : ""}` : isRoad(d) ? `🕓 <a href="#roteiro" data-act="editDay" data-id="${d.id}">definir saída</a>` : "",
-    d.km ? `🛣️ <b>${num(d.km)} km</b>` : "", ln && ln !== "—" ? `🛏️ <a href="#hospedagem">${esc(ln)}</a>` : ""].filter(Boolean);
+    d.km ? `🛣️ <b>${num(d.km)} km</b>` : ""].filter(Boolean);
   const ck = tag === "Hoje" ? checkins().filter(x => x.at && new Date(x.at).toDateString() === new Date().toDateString()).slice(0, 2) : [];
   return `<div class="card hoje" style="border-left:6px solid ${c.color}">
     <div class="between"><div class="label">${tag} · ${wd(d.date)} ${fmtD(d.date)}</div><span class="muted" style="font-size:.78rem">Dia ${i + 1} de ${ds.length}</span></div>
     <div class="ht">${esc(d.title)}</div>
-    <div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando o tempo…</span></div>
-    <div class="hrow">${facts.map(f => `<span>${f}</span>`).join("")}</div>
-    ${isRoad(d) && tripEnds(d)[1] ? `<div class="fuel1"><span>⛽</span><div data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></div>` : ""}
+    <div class="sec"><div class="label">Tempo</div><div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando o tempo…</span></div></div>
+    <div class="sec"><div class="label">Horário e distância</div><div class="hrow">${facts.map(f => `<span>${f}</span>`).join("")}</div></div>
+    ${isRoad(d) && tripEnds(d)[1] ? `<div class="sec"><div class="label">Abastecimento</div><div class="fuel1" data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></div>` : ""}
+    ${ln && ln !== "—" ? `<div class="sec"><div class="label">Pernoite</div><div>🛏️ <a href="#hospedagem">${esc(ln)}</a></div></div>` : ""}
     ${ck.map(x => `<div class="fuel1"><span>${x.kind === "ok" ? "✅" : "📍"}</span><div><b>${esc(rname(x.rider))}</b> ${x.kind === "ok" ? `chegou bem${x.place ? " em " + esc(x.place) : ""}` : "mandou a localização"} às ${pad(new Date(x.at).getHours())}h${pad(new Date(x.at).getMinutes())}${x.lat != null ? ` · <a href="https://maps.google.com/?q=${x.lat},${x.lng}" target="_blank" rel="noopener">mapa</a>` : ""}</div></div>`).join("")}
     ${tag === "Hoje" ? `<a class="btn primary block" href="#pilotando">🏍️ Modo pilotando</a><div class="grid2"><button class="btn" data-act="sendLoc">📍 Localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
     <div class="bar4">${canNav(d) ? `<button type="button" data-act="navPick" data-id="${d.id}"><span>🧭</span>Navegar</button>` : ""}<button type="button" data-act="mapCirc" data-v="${d.circ}"><span>🗺️</span>Mapa</button><button type="button" data-act="wxDay" data-id="${d.id}"><span>🌦️</span>Tempo</button><a href="#roadbook"><span>📄</span>Roadbook</a></div>
@@ -279,6 +280,7 @@ function hojeCard(ds, t) {
   </div>`;
 }
 // Hora de chegada estimada (dias de estrada com saída e km)
+const viaArrows = v => v.split("·").map(x => x.trim()).filter(Boolean).map(esc).join(' <span class="arr">→</span> ');
 const arrivalOf = d => d.saida && d.km && isRoad(d) && tripEnds(d)[1] ? hhmm(toH(d.saida) + d.km / avgSpeed()) : "";
 const canNav = d => (isRoad(d) && tripEnds(d)[1]) || allPoints().some(p => p.circ === d.circ && p.lat != null && p.id !== "pousada");
 
@@ -300,11 +302,9 @@ function roteiro() {
         <div style="min-width:0"><div class="dt">${esc(d.title)}</div><div class="dm">${esc(c.short || c.name)}${d.saida ? " · saída " + d.saida.replace(":", "h") : ""}${arr ? " · chegada ~" + arr : ""}</div></div>
         <div class="dk">${d.km ? num(d.km) + " km" : ""}<span class="wx" data-wx="${d.id}" data-mode="chip"></span></div></summary>
       <div class="body">
-        <dl class="kvl">
-          ${d.via ? `<dt>Caminho</dt><dd>${esc(d.via)}</dd>` : ""}
-          <dt>Tempo</dt><dd><div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando…</span></div></dd>
-          ${isRoad(d) && tripEnds(d)[1] ? `<dt>Abastecer</dt><dd class="fuel1"><div data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></dd>` : ""}
-        </dl>
+        ${d.via ? `<div class="sec"><div class="label">Caminho</div><div class="via">${viaArrows(d.via)}</div></div>` : ""}
+        <div class="sec"><div class="label">${isRoad(d) && tripEnds(d)[1] ? "Tempo no caminho" : "Tempo"}</div><div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando…</span></div></div>
+        ${isRoad(d) && tripEnds(d)[1] ? `<div class="sec"><div class="label">Abastecimento</div><div class="fuel1" data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></div>` : ""}
         ${circBlock}
         <div class="bar4">${canNav(d) ? `<button type="button" data-act="navPick" data-id="${d.id}"><span>🧭</span>Navegar</button>` : ""}<button type="button" data-act="mapCirc" data-v="${d.circ}"><span>🗺️</span>Mapa</button><button type="button" data-act="dayPhotos" data-id="${d.id}"><span>📷</span>Fotos${nPh ? ` · ${nPh}` : ""}</button><button type="button" data-act="editDay" data-id="${d.id}"><span>✏️</span>Editar</button></div>
       </div></details>`;
@@ -1262,7 +1262,7 @@ async function fuelPlanDay(d) {
 function fuelHTML(P, mode) {
   if (!P) return mode === "rb" ? "—" : "";
   const nm = s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`;
-  if (mode === "line") return P.riders.map(r => `<div><b>${esc(rname(r.id))}</b> ${r.missing ? `<a href="#pilotos">informar tanque e consumo</a>` : r.stops.length ? r.stops.map(s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`).join(" · ") : "um tanque dá"}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada</span>` : ""}</div>`).join("");
+  if (mode === "line") return P.riders.map(r => `<div><b>${esc(rname(r.id))}:</b> ${r.missing ? `<a href="#pilotos">informar tanque e consumo</a>` : r.stops.length ? r.stops.map(s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`).join(" → ") : "um tanque dá até o destino"}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada</span>` : ""}</div>`).join("");
   if (mode === "rb") return P.riders.map(r => `${esc(rname(r.id))}: ${r.missing ? "—" : r.stops.length ? r.stops.map(s => `${nm(s)} (${num(s.km)})`).join(", ") : "um tanque dá"}`).join(" · ");
   const line = r => r.missing ? `<b>${esc(rname(r.id))}</b>: <a href="#pilotos">informar tanque e consumo</a>`
     : `<b>${esc(rname(r.id))}</b>${mode === "short" ? "" : ` <span class="muted">(~${num(r.aut)} km/tanque)</span>`}: ${r.stops.length ? "abastecer em " + r.stops.map(s => `<b>${nm(s)}</b> <span class="muted">${num(s.km)} km</span>`).join(" → ") : `um tanque dá até ${esc(P.dest)}`}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada${r.warn.to ? " até " + esc(r.warn.to) : ""}</span>` : ""}`;
