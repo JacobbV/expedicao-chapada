@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.11.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.12.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -32,6 +32,8 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto (usados na autonomia e no combustível), redes e contatos de cada um e, para o admin, **+ Adicionar piloto** |
+| **Menu ☰ → Segurança** | Botões **Enviar minha localização** e **Cheguei bem** (abrem o WhatsApp com a mensagem e o link do mapa e ficam registrados no app), números úteis e a **ficha de emergência** de cada piloto, visível só para o grupo |
+| **Menu ☰ → Diário de bordo** | Cada abastecida com hodômetro, litros e preço. Calcula o **consumo real** entre dois tanques cheios, km por tanque e custo por km; o consumo real passa a ser usado na autonomia, nas paradas do painel Hoje e no combustível previsto |
 | **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, média na estrada (para o tempo no caminho), fim das férias, backup, sincronização, sair da conta e versão do app |
 | **Menu ☰ → Aparência** | Atalho para trocar entre **Automático** (segue o celular), **☀ Dia** e **☾ Noite**. A escolha fica salva em cada aparelho |
 | **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, **redes e contatos de cada piloto** (só aparecem os preenchidos) e créditos. Todos veem; os textos só o admin edita, e cada piloto edita os próprios contatos |
@@ -242,7 +244,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.11.0** | 25/10/2026 | **Painel Hoje** no Início: o dia (ou a prévia do dia 1 antes da viagem) com tempo, saída e chegada estimada, paradas para abastecer de cada moto pela autonomia, pernoite, o que falta no seu checklist, atalhos para Tempo do dia, mapa e roadbook, e o dia seguinte |
+| **1.12.0** | 25/10/2026 | **Segurança** (☰ → Segurança): enviar minha localização e “Cheguei bem” pelo WhatsApp com link do mapa, registrados no app para o outro piloto; números úteis (192, 193, 191, 190); ficha de emergência de cada piloto (tipo sanguíneo, alergias, remédios, plano, contato, placa, assistência). **Diário de bordo** (☰ → Diário de bordo): hodômetro e litros a cada abastecida, consumo real entre tanques cheios, km por tanque, custo por km, opção de lançar em Gastos; o consumo real passa a valer nas contas do app. No painel Hoje: botões de localização e Cheguei bem e os avisos do dia |
+| 1.11.0 | 25/10/2026 | **Painel Hoje** no Início: o dia (ou a prévia do dia 1 antes da viagem) com tempo, saída e chegada estimada, paradas para abastecer de cada moto pela autonomia, pernoite, o que falta no seu checklist, atalhos para Tempo do dia, mapa e roadbook, e o dia seguinte |
 | 1.10.0 | 25/10/2026 | **Tempo mais completo:** semana em barras no topo do Roteiro com sugestão de troca de circuito em dia de chuva; faixa e avisos no cartão do dia; folha **Tempo do dia** com o tempo em cada cidade do caminho na hora que vocês passam, avisos (calor, chuva, pôr do sol, rajadas, UV), hora a hora, vento, UV, sol e chuva; antes da previsão, **clima típico dos últimos 5 anos**; média na estrada em Ajustes |
 | 1.9.1 | 24/10/2026 | Correção no menu: os textos ao lado de cada item (confirmadas, abertas, versão) apareciam cortados |
 | 1.9.0 | 24/10/2026 | **Menu novo** (perfil no topo, dias para a saída, sincronização, grupos com ícones e Sair da conta); **Roadbook 10 × 15 cm** com um cartão por dia para imprimir ou salvar em PDF; **tempo por dia** no Roteiro (previsão até 15 dias; antes disso, o mesmo dia do ano anterior como referência) |

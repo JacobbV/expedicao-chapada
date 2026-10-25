@@ -387,3 +387,15 @@ body.not-admin .adm{display:none!important}
 .hlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .hlist li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:.88rem;line-height:1.4}
 .hlist li>span{font-size:1.05rem;line-height:1.3}
+
+/* ---------- Segurança e Diário ---------- */
+.btn.big{padding:14px 12px;font-size:.95rem;white-space:normal;line-height:1.25}
+.sos .btn{display:grid;gap:0;text-align:center;padding:10px}
+.sos .btn b{font:800 1.6rem/1 var(--f-display);color:var(--bad)}
+.sos .btn small{font-size:.74rem;color:var(--muted);font-weight:600}
+.loglist{display:grid}
+.logrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;width:100%;cursor:pointer}
+.logrow:disabled{cursor:default;color:inherit;opacity:1}
+.logrow:last-child{border-bottom:0}
+.logrow small{display:block;color:var(--muted);font-size:.76rem}
+.logrow .r{text-align:right;display:grid;justify-items:end;gap:3px}

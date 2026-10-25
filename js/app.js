@@ -74,7 +74,7 @@ function settleText() {
   return ids.map(i => `${rname(i)}: ${bal[i] >= 0 ? "recebe" : "paga"} ${brl(Math.abs(bal[i]))}`).join(" · ");
 }
 function fuelPlan(rid) {
-  const r = S.riders[rid]; const c = Number(r?.consumo);
+  const r = S.riders[rid]; const c = consumoDe(rid);
   if (!c) return null;
   const l = totalKm() / c; return { litros: l, custo: l * (Number(S.trip.gasPrice) || 0), autonomia: r.tanque ? r.tanque * c : null };
 }
@@ -135,7 +135,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook, seguranca, diario };
 
 function render() {
   if (!S || !ST) return;
@@ -248,7 +248,7 @@ function hojeCard(ds, t) {
   else if (isRoad(d)) rows.push(["🕓", `Hora de saída ainda não definida · <a href="#roteiro" data-act="editDay" data-id="${d.id}">definir</a>`]);
   // Combustível do dia
   if (d.km) {
-    const parts = riderIds().map(id => { const r = S.riders[id], aut = (Number(r.tanque) || 0) * (Number(r.consumo) || 0);
+    const parts = riderIds().map(id => { const r = S.riders[id], aut = (Number(r.tanque) || 0) * (consumoDe(id) || 0);
       if (!aut) return `${esc(rname(id))}: <a href="#pilotos">informar tanque e consumo</a>`;
       const n = Math.ceil(d.km / (aut * .85)) - 1;
       return `${esc(rname(id))}: ${n <= 0 ? "um tanque dá" : `<b>${n} ${n === 1 ? "parada" : "paradas"}</b> para abastecer`} <span class="muted">(autonomia ~${num(aut)} km)</span>`; });
@@ -256,12 +256,15 @@ function hojeCard(ds, t) {
   }
   // Pernoite
   const ln = lodgingFor(i, ds); if (ln && ln !== "—") rows.push(["🛏️", `Pernoite: <a href="#hospedagem">${esc(ln)}</a>`]);
+  // Avisos de hoje (localização / cheguei bem)
+  if (tag === "Hoje") { const ck = checkins().filter(c => c.at && new Date(c.at).toDateString() === new Date().toDateString()).slice(0, 2);
+    ck.forEach(c => rows.push([c.kind === "ok" ? "✅" : "📍", `<b>${esc(rname(c.rider))}</b> ${c.kind === "ok" ? `chegou bem${c.place ? " em " + esc(c.place) : ""}` : "mandou a localização"} às ${pad(new Date(c.at).getHours())}h${pad(new Date(c.at).getMinutes())}${c.lat != null ? ` · <a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" rel="noopener">mapa</a>` : ""}`])); }
   // Checklist que falta (meu)
   const m = me() || riderIds()[0];
   if (m) {
     const falta = []; for (const [, items] of CHECKLIST) for (const it of items) { const st = itemStatus(m, it[0]); if (st === "prov" || st === "rev" || st === "avaliar") falta.push(it[1]); }
-    if (falta.length) rows.push(["✅", `Falta no seu checklist: ${falta.slice(0, 3).map(esc).join(", ")}${falta.length > 3 ? ` e mais ${falta.length - 3}` : ""} · <a href="#checklist" data-vr="${m}">ver</a>`]);
-    else rows.push(["✅", "Seu checklist está completo."]);
+    if (falta.length) rows.push(["📋", `Falta no seu checklist: ${falta.slice(0, 3).map(esc).join(", ")}${falta.length > 3 ? ` e mais ${falta.length - 3}` : ""} · <a href="#checklist" data-vr="${m}">ver</a>`]);
+    else rows.push(["📋", "Seu checklist está completo."]);
   }
   return `<div class="card hoje" style="border-left:6px solid ${c.color}">
     <div class="between"><div class="label">${tag} · ${wd(d.date)} ${fmtD(d.date)}</div><span class="muted" style="font-size:.78rem">Dia ${i + 1} de ${ds.length}</span></div>
@@ -269,6 +272,7 @@ function hojeCard(ds, t) {
     <div class="muted" style="font-size:.85rem">${esc(c.short || c.name)}</div>
     <div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando o tempo…</span></div>
     <ul class="hlist">${rows.map(([ic, h]) => `<li><span>${ic}</span><div>${h}</div></li>`).join("")}</ul>
+    ${tag === "Hoje" ? `<div class="grid2"><button class="btn primary" data-act="sendLoc">📍 Minha localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
     <div class="row"><button class="btn sm" data-act="wxDay" data-id="${d.id}">Tempo do dia</button><button class="btn sm" data-act="mapCirc" data-v="${d.circ}">Ver no mapa</button><a class="btn sm" href="#roadbook">Roadbook</a></div>
     ${nx ? `<p class="muted" style="font-size:.8rem">Depois: ${wd(nx.date)} ${fmtD(nx.date)} · ${esc(nx.title)}${nx.saida ? " · saída " + nx.saida.replace(":", "h") : ""}</p>` : ""}
   </div>`;
@@ -568,8 +572,11 @@ const ICON = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
   out:  '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
+  shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 9h6"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
 };
 const mi = (href, icon, label, extra) => `<a href="${href}" class="mitem"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[icon]}</svg><span>${label}</span>${extra ? `<small>${extra}</small>` : ""}</a>`;
+const consumoTag = id => { const r = id && logStats(id).real; return r ? `${num(r, 1)} km/L real` : "consumo real"; };
 function openMenu() {
   const conf = Object.values(S.lodging || {}).filter(l => l.status === "confirmada").length;
   const open = PEND.length + Object.keys(S.pend?.custom || {}).length - Object.keys(S.pend?.done || {}).length;
@@ -589,6 +596,9 @@ function openMenu() {
       ${mi("#pendencias", "pend", "Pendências", `${open} abertas`)}
       ${mi("#pilotos", "moto", "Pilotos e motos", `${riderIds().length} pilotos`)}
       ${mi("#roadbook", "book", "Roadbook", "10×15 · PDF")}</div>
+    <div class="mgroup"><div class="label">Na estrada</div>
+      ${mi("#seguranca", "shield", "Segurança", "localização e fichas")}
+      ${mi("#diario", "fuel", "Diário de bordo", consumoTag(m))}</div>
     <div class="mgroup"><div class="label">App</div>
       ${mi("#ajustes", "gear", "Ajustes", "gasolina e backup")}
       ${mi("#sobre", "info", "Sobre", `versão ${esc(self.APP_VERSION || "?")}`)}</div>
@@ -995,6 +1005,127 @@ function storyForm() {
   });
 }
 
+/* ---------- SEGURANÇA ---------- */
+const EMERG = [["sangue", "Tipo sanguíneo", "Ex.: O+"], ["alergias", "Alergias", "Ex.: dipirona, nenhuma"], ["remedios", "Remédios de uso contínuo", ""],
+  ["plano", "Plano de saúde", "Nome e número da carteirinha"], ["contatoNome", "Contato de emergência", "Nome e parentesco"], ["contatoTel", "Telefone do contato", "(83) 9 9999-9999"],
+  ["placa", "Placa da moto", ""], ["assistencia", "Seguro / assistência 24h", "Empresa e telefone"]];
+const telHref = v => "tel:" + (v || "").replace(/[^\d+]/g, "");
+const waHref = (v, text) => { const d = (v || "").replace(/\D/g, ""); return `https://wa.me/${d ? (d.startsWith("55") ? d : "55" + d) : ""}?text=${encodeURIComponent(text)}`; };
+const checkins = () => Object.entries(S.meta?.checkins || {}).map(([id, c]) => ({ id, ...c })).sort((a, b) => (b.at || 0) - (a.at || 0));
+const ckTime = at => { const d = new Date(at); return `${WD[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`; };
+const ckLine = c => `<li><span>${c.kind === "ok" ? "✅" : "📍"}</span><div><b>${esc(rname(c.rider))}</b> · ${c.kind === "ok" ? `chegou bem${c.place ? " em " + esc(c.place) : ""}` : "mandou a localização"} · <span class="muted">${ckTime(c.at)}</span>${c.lat != null ? ` · <a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" rel="noopener">ver no mapa</a>` : ""}</div></li>`;
+function todayDest() { const d = days().find(x => x.date === todayISO()); if (!d) return ""; return isRoad(d) && tripEnds(d)[1] ? cleanCity(tripEnds(d)[1]) : "Lençóis"; }
+function getPos() {
+  return new Promise(res => { if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(p => res({ lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) }), () => res(null), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }); });
+}
+async function sendAlert(kind) {
+  const m = me(); if (!m) return pickMe();
+  toast("Pegando sua localização…");
+  const pos = await getPos(), now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`, place = kind === "ok" ? todayDest() : "";
+  const link = pos ? `\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}` : "";
+  const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `📍 ${rname(m)} aqui, às ${hm}.${link || "\n(localização indisponível agora)"}\n— Expedição Chapada`;
+  const list = checkins(), keep = list.slice(49).reduce((o, c) => (o[c.id] = null, o), {});
+  store.merge("meta/checkins", { ...keep, [newId()]: { rider: m, kind, at: Date.now(), lat: pos?.lat ?? null, lng: pos?.lng ?? null, place } });
+  if (!pos) toast("Sem localização: mandando só o aviso");
+  location.href = waHref("", text);
+}
+function seguranca() {
+  const list = checkins().slice(0, 6);
+  return `${backLink}<h2>Segurança</h2>
+  <div class="card stack"><h3>Avisar o grupo</h3>
+    <div class="grid2"><button class="btn primary big" data-act="sendLoc">📍 Enviar minha localização</button><button class="btn big" data-act="sendOk">✅ Cheguei bem</button></div>
+    <p class="muted" style="font-size:.82rem">Abre o WhatsApp com a mensagem e o link do mapa prontos: escolha o grupo ou a pessoa. O aviso também fica registrado aqui para o outro piloto.</p>
+    ${list.length ? `<div class="label">Últimos avisos</div><ul class="hlist">${list.map(ckLine).join("")}</ul>` : ""}</div>
+  <div class="card stack"><h3>Números úteis</h3>
+    <div class="grid2 sos">${[["192", "SAMU"], ["193", "Bombeiros"], ["191", "PRF · rodovia federal"], ["190", "Polícia Militar"]].map(([n, l]) => `<a class="btn" href="tel:${n}"><b>${n}</b><small>${l}</small></a>`).join("")}</div></div>
+  ${riderIds().map(id => { const e = S.riders[id].emerg || {}, filled = EMERG.filter(([k]) => e[k]);
+    return `<div class="card stack"><div class="between"><h3>Ficha · ${esc(rname(id))}</h3>${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editEmerg" data-id="${id}">Editar</button>` : ""}</div>
+      ${filled.length ? `<dl class="kv">${filled.map(([k, l]) => `<dt>${l}</dt><dd>${k === "contatoTel" ? `<a href="${telHref(e[k])}">${esc(e[k])}</a> · <a href="${waHref(e[k], "")}" target="_blank" rel="noopener">WhatsApp</a>` : esc(e[k])}</dd>`).join("")}</dl>`
+        : `<p class="muted">${id === me() ? "Preencha sua ficha: tipo sanguíneo, alergias e um contato de emergência ajudam muito se algo acontecer." : "Ainda não preenchida."}</p>`}</div>`; }).join("")}
+  <p class="note">A ficha fica visível só para os pilotos do grupo. Em acidente, mostre esta tela para o socorro.</p>`;
+}
+function emergForm(id) {
+  const e = S.riders[id].emerg || {};
+  openSheet(`<h3>Ficha de emergência · ${esc(rname(id))}</h3><p class="muted" style="font-size:.85rem">Só os pilotos do grupo veem. Preencha o que quiser.</p>
+    <form id="emF" class="stack">${EMERG.map(([k, l, ph]) => `<label class="field"><span>${l}</span><input id="em_${k}" value="${esc(e[k] || "")}" placeholder="${esc(ph)}" ${k === "contatoTel" ? 'inputmode="tel"' : ""}></label>`).join("")}
+    <div class="actions"><button type="button" class="btn" data-close="1">Cancelar</button><button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#emF").addEventListener("submit", ev => { ev.preventDefault();
+      const out = {}; EMERG.forEach(([k]) => out[k] = sh.querySelector("#em_" + k).value.trim());
+      store.merge("riders/" + id, { emerg: out }); closeSheet(); toast("Ficha salva"); });
+  });
+}
+
+/* ---------- DIÁRIO DE BORDO ---------- */
+const logOf = id => Object.entries(S.riders?.[id]?.diario || {}).map(([k, v]) => ({ id: k, ...v })).sort((a, b) => (a.odo || 0) - (b.odo || 0) || (a.date || "").localeCompare(b.date || ""));
+function logStats(id) {
+  const L = logOf(id); if (!L.length) return { L, km: 0, litros: 0, real: null, gasto: 0, segs: 0 };
+  let lastFull = null, since = 0, kmSeg = 0, lSeg = 0, segs = 0;
+  L.forEach((e, i) => {
+    e.seg = null;
+    if (lastFull != null) since += Number(e.litros) || 0;
+    if (e.cheio !== false) {
+      if (lastFull != null && since > 0 && e.odo > lastFull) { const km = e.odo - lastFull; e.seg = { km, cons: km / since }; kmSeg += km; lSeg += since; segs++; }
+      lastFull = e.odo; since = 0;
+    }
+  });
+  const km = L[L.length - 1].odo - L[0].odo, after = L.slice(1);
+  const litros = after.reduce((s, e) => s + (Number(e.litros) || 0), 0), gasto = after.reduce((s, e) => s + (Number(e.litros) || 0) * (Number(e.ppl) || 0), 0);
+  return { L, km, litros, real: segs ? kmSeg / lSeg : null, gasto, segs };
+}
+// consumo usado nas contas: o real do diário, quando existe; senão o informado no perfil
+const consumoDe = id => logStats(id).real || Number(S.riders?.[id]?.consumo) || null;
+function diario() {
+  const id = viewRider, r = S.riders[id] || {}, st = logStats(id), mine = canEdit(id);
+  const cad = Number(r.consumo) || null, tanque = Number(r.tanque) || null;
+  const diff = st.real && cad ? (st.real - cad) / cad * 100 : null;
+  return `${backLink}<div class="between"><h2>Diário de bordo</h2>${mine ? `<button class="btn sm primary" data-act="newLog">+ Abastecimento</button>` : ""}</div>
+  ${riderSeg(false)}
+  <div class="stats">
+    <div class="stat"><div class="v">${st.real ? num(st.real, 1) : "—"}</div><div class="k">km/L real${diff != null ? ` · ${diff >= 0 ? "+" : ""}${num(diff)}% do informado` : ""}</div></div>
+    <div class="stat"><div class="v">${tanque && (st.real || cad) ? num(tanque * (st.real || cad)) : "—"}</div><div class="k">km por tanque${st.real ? " (real)" : cad ? " (informado)" : ""}</div></div>
+    <div class="stat"><div class="v">${num(st.km)}</div><div class="k">km rodados no diário</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${st.km > 0 && st.gasto ? brl(st.gasto / st.km) : "—"}</div><div class="k">combustível por km</div></div>
+  </div>
+  ${st.real && cad && Math.abs(diff) >= 5 && mine ? `<div class="infobox">O consumo real (${num(st.real, 1)} km/L) já é usado nas contas do app: autonomia, paradas para abastecer e combustível previsto. <button class="btn sm" data-act="useReal" style="margin-left:6px">Gravar ${num(st.real, 1)} km/L no perfil</button></div>` : ""}
+  <div class="card stack"><h3>Abastecimentos</h3>
+    ${st.L.length ? `<div class="loglist">${[...st.L].reverse().map(e => `<button type="button" class="logrow" ${mine ? `data-act="editLog" data-id="${e.id}"` : "disabled"}>
+      <div><b>${e.date ? `${wd(e.date)} ${fmtD(e.date)}` : "—"}</b>${e.local ? ` · ${esc(e.local)}` : ""}<small>${num(e.odo)} km no hodômetro${e.cheio === false ? " · parcial" : ""}</small></div>
+      <div class="r"><b class="num">${num(e.litros, 2)} L</b><small>${e.ppl ? brl(e.litros * e.ppl) : ""}</small>${e.seg ? `<span class="chip s-ok">${num(e.seg.cons, 1)} km/L · ${num(e.seg.km)} km</span>` : ""}</div></button>`).join("")}</div>`
+      : `<p class="muted">${mine ? "Anote cada abastecida: hodômetro e litros. O app calcula o consumo real da sua moto." : `${esc(rname(id))} ainda não anotou abastecimentos.`}</p>`}
+    <p class="note">O consumo é calculado entre dois tanques cheios: encha até a boca e anote o hodômetro. Abastecida parcial entra na conta do próximo tanque cheio.</p></div>`;
+}
+function logForm(e) {
+  const id = canEdit(viewRider) ? viewRider : me(), isNew = !e, prev = logOf(id).slice(-1)[0];
+  e = e || { date: todayISO(), odo: "", litros: "", ppl: S.trip.gasPrice, cheio: true, local: "" };
+  openSheet(`<h3>${isNew ? "Novo abastecimento" : "Editar abastecimento"}</h3>
+    <form id="lgF" class="stack">
+      <div class="grid2"><label class="field"><span>Hodômetro (km)</span><input id="lO" inputmode="numeric" value="${e.odo ?? ""}" required ${prev && isNew ? `placeholder="último: ${num(prev.odo)}"` : ""}></label>
+      <label class="field"><span>Data</span><input id="lD" type="date" value="${e.date || ""}"></label></div>
+      <div class="grid2"><label class="field"><span>Litros</span><input id="lL" inputmode="decimal" value="${e.litros ?? ""}" required></label>
+      <label class="field"><span>R$ por litro</span><input id="lP" inputmode="decimal" value="${e.ppl ?? ""}"></label></div>
+      <label class="field"><span>Posto / cidade</span><input id="lLoc" value="${esc(e.local || "")}" placeholder="Ex.: Salgueiro"></label>
+      <label class="check"><input type="checkbox" id="lC" ${e.cheio !== false ? "checked" : ""}> Tanque cheio</label>
+      ${isNew ? `<label class="check"><input type="checkbox" id="lE" checked> Lançar também em Gastos da viagem</label>` : ""}
+      <p class="err" id="lErr" hidden></p>
+      <div class="actions">${isNew ? `<button type="button" class="btn" data-close="1">Cancelar</button>` : `<button type="button" class="btn danger" id="lDel">Excluir</button>`}<button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#lgF").addEventListener("submit", ev => { ev.preventDefault();
+      const odo = parseNum(sh.querySelector("#lO").value), litros = parseNum(sh.querySelector("#lL").value), ppl = parseNum(sh.querySelector("#lP").value);
+      const er = sh.querySelector("#lErr");
+      if (!odo || !litros) { er.hidden = false; er.textContent = "Informe o hodômetro e os litros."; return; }
+      const lid = isNew ? newId() : e.id;
+      const data = { date: sh.querySelector("#lD").value, odo: Math.round(odo), litros, ppl, cheio: sh.querySelector("#lC").checked, local: sh.querySelector("#lLoc").value.trim() };
+      store.merge("riders/" + id, { diario: { [lid]: data } });
+      if (isNew && sh.querySelector("#lE")?.checked && ppl) store.put("expenses", newId(), { cat: "combustivel", desc: "Abastecimento" + (data.local ? " em " + data.local : ""), amount: Math.round(litros * ppl * 100) / 100,
+        date: data.date, liters: litros, ppl, created: Date.now(), rider: id, shared: false, fromLog: lid });
+      closeSheet(); toast(isNew ? "Abastecimento anotado" : "Salvo");
+    });
+    const del = sh.querySelector("#lDel"); let armed = false;
+    del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; }
+      store.merge("riders/" + id, { diario: { [e.id]: null } }); closeSheet(); toast("Abastecimento excluído"); });
+  });
+}
+
 /* ---------- TEMPO ---------- */
 const tC = v => v == null ? "—" : Math.round(v) + "°";
 const low = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -1225,6 +1356,12 @@ $("#view").addEventListener("click", e => {
   if (ADMIN_ACTS.has(act) && !isAdmin()) { toast("Só o admin altera isso"); return; }
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
+  else if (act === "sendLoc") sendAlert("loc");
+  else if (act === "sendOk") sendAlert("ok");
+  else if (act === "editEmerg") { if (canEdit(id) || isAdmin()) emergForm(id); }
+  else if (act === "newLog") { if (canEdit(viewRider)) logForm(null); }
+  else if (act === "editLog") { if (!canEdit(viewRider)) return; const e = S.riders[viewRider]?.diario?.[id]; if (e) logForm({ id, ...e }); }
+  else if (act === "useReal") { const r = logStats(viewRider).real; if (r && canEdit(viewRider)) { store.merge("riders/" + viewRider, { consumo: Math.round(r * 10) / 10 }); toast("Consumo atualizado no perfil"); } }
   else if (act === "wxDay") { const d = S.trip.days.find(x => x.id === id); if (d) wxSheet(d); }
   else if (act === "addDay") { const ds = days(); const last = ds[ds.length - 1];
     const nd = { id: "d" + newId(), date: last ? addDays(last.date, 1) : S.trip.startDate, tipo: "folga", circ: "folga", title: "Dia de folga", km: null, saida: "", via: "", notes: "" };

@@ -128,7 +128,7 @@ function cloudStore() {
         pendingBy[col] = qs.metadata.hasPendingWrites;
         const map = {};
         qs.forEach(d => { map[d.id] = d.data(); });
-        if (target) state[target] = map; else state.pend = map.pend || { done: {} };
+        if (target) state[target] = map; else { state.pend = map.pend || { done: {} }; state.meta = { checkins: map.checkins || {} }; }
         if (col === "points" && !qs.metadata.fromCache) seedPointsIfNeeded().catch(e => { status.error = e.message; emit(); });
         emit();
       }, () => {}));
