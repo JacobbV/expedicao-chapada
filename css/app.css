@@ -291,7 +291,7 @@ body.not-admin .adm{display:none!important}
 .wxline{font-size:.88rem}
 
 /* Roadbook: cartão 10 × 15 cm, sempre em “papel claro” */
-.rb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100mm,1fr));gap:16px;justify-items:center}
+.rb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100mm,100%),1fr));gap:16px;justify-items:center}
 .rb{width:100mm;max-width:100%;height:150mm;background:#fff;color:#1d221e;border-radius:6px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;font-size:9.5pt;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rb-head{display:flex;justify-content:space-between;background:var(--c);color:#fff;padding:3mm 4mm;font:800 10pt var(--f-body);text-transform:uppercase;letter-spacing:.05em}
 .rb-title{font:800 15pt/1.05 var(--f-display);text-transform:uppercase;padding:3mm 4mm 2mm;color:#1d221e}
@@ -399,3 +399,32 @@ body.not-admin .adm{display:none!important}
 .logrow:last-child{border-bottom:0}
 .logrow small{display:block;color:var(--muted);font-size:.76rem}
 .logrow .r{text-align:right;display:grid;justify-items:end;gap:3px}
+.chipbtn{border:1px dashed var(--line);background:none;border-radius:99px;padding:4px 10px;font-size:.8rem;cursor:pointer;color:var(--fg)}
+.chipbtn:hover{border-color:var(--stripe)}
+
+/* ---------- Modo pilotando ---------- */
+body.riding .top,body.riding .nav{display:none}
+body.riding main{padding:max(12px,env(safe-area-inset-top)) 0 max(12px,env(safe-area-inset-bottom))}
+.ride{display:grid;gap:12px;min-height:calc(100vh - 24px);align-content:start}
+.ride-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.ride-clock{font:800 3rem/1 var(--f-display);color:var(--stripe)}
+.ride-day{font-size:.9rem;color:var(--muted);margin-top:4px}
+.ride-body{display:grid;gap:10px}
+.rt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:2px}
+.rt small{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rt b{font:800 2.2rem/1.05 var(--f-display);text-transform:uppercase}
+.rt span{font-size:1.05rem;color:var(--muted)}
+.rt.big{border-left:6px solid var(--stripe)}
+.rt.big b{font-size:2.9rem}
+.rt.big span{font:700 1.6rem var(--f-mono);color:var(--fg)}
+.rt.hot{border-color:var(--warn);background:var(--warn-bg)}
+.ride-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px}
+.ride-list li{display:flex;justify-content:space-between;gap:10px;font-size:1.15rem;font-weight:700}
+.ride-list a{color:var(--fg)}
+.ride-list span{font-family:var(--f-mono);color:var(--muted)}
+.ride-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ride-btns .btn{padding:16px 6px;font-size:1rem}
+.ride-btns .sos1{color:var(--bad);font-weight:800;text-align:center}
+.ride-note{font-size:.78rem;color:var(--muted)}
+.rb-toolbar .between{flex-wrap:wrap;gap:10px}
+.view{grid-template-columns:minmax(0,1fr)}

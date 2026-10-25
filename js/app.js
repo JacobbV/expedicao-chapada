@@ -135,7 +135,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook, seguranca, diario };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook, seguranca, diario, revisao, pilotando };
 
 function render() {
   if (!S || !ST) return;
@@ -146,6 +146,7 @@ function render() {
   if (!VIEWS[route]) route = "inicio";
   if (!viewRider || !S.riders[viewRider]) viewRider = me() || riderIds()[0];
   document.body.classList.toggle("not-admin", !isAdmin());
+  document.body.classList.toggle("riding", route === "pilotando");
   if (route === "mapa" && mapView && mapView.alive()) { updateMapParts(); renderTop(); return; }
   $("#view").innerHTML = `<section class="view">${VIEWS[route]()}</section>`;
   if (route === "mapa") mountMap();
@@ -153,6 +154,8 @@ function render() {
   if (!me() && !$("#layer").innerHTML) pickMe(true);
   migrateLegacy();
   fillWx();
+  fillFuel();
+  if (route === "pilotando") { startRide(); fillRide(); } else stopRide();
 }
 
 /* ---------- login (modo nuvem) ---------- */
@@ -233,6 +236,7 @@ function inicio() {
 }
 
 /* Painel Hoje: o que importa no dia (antes da viagem mostra a prévia do 1º dia) */
+const m0 = () => me() || riderIds()[0];
 function hojeCard(ds, t) {
   if (!ds.length) return "";
   const last = ds[ds.length - 1].date;
@@ -252,10 +256,12 @@ function hojeCard(ds, t) {
       if (!aut) return `${esc(rname(id))}: <a href="#pilotos">informar tanque e consumo</a>`;
       const n = Math.ceil(d.km / (aut * .85)) - 1;
       return `${esc(rname(id))}: ${n <= 0 ? "um tanque dá" : `<b>${n} ${n === 1 ? "parada" : "paradas"}</b> para abastecer`} <span class="muted">(autonomia ~${num(aut)} km)</span>`; });
-    rows.push(["⛽", `${num(d.km)} km · ${parts.join(" · ")}`]);
+    rows.push(["⛽", isRoad(d) && tripEnds(d)[1] ? `<div data-fuel="${d.id}" data-mode="short">${num(d.km)} km · ${parts.join(" · ")}</div>` : `${num(d.km)} km · ${parts.join(" · ")}`]);
   }
   // Pernoite
   const ln = lodgingFor(i, ds); if (ln && ln !== "—") rows.push(["🛏️", `Pernoite: <a href="#hospedagem">${esc(ln)}</a>`]);
+  // Revisão pendente (antes da viagem)
+  if (tag !== "Hoje" && m0()) { const n = revOf(m0()).filter(x => !x.done).length; if (n) rows.push(["🔧", `Revisão da moto: ${n} ${n === 1 ? "item" : "itens"} a fazer · <a href="#revisao" data-vr="${m0()}">ver</a>`]); }
   // Avisos de hoje (localização / cheguei bem)
   if (tag === "Hoje") { const ck = checkins().filter(c => c.at && new Date(c.at).toDateString() === new Date().toDateString()).slice(0, 2);
     ck.forEach(c => rows.push([c.kind === "ok" ? "✅" : "📍", `<b>${esc(rname(c.rider))}</b> ${c.kind === "ok" ? `chegou bem${c.place ? " em " + esc(c.place) : ""}` : "mandou a localização"} às ${pad(new Date(c.at).getHours())}h${pad(new Date(c.at).getMinutes())}${c.lat != null ? ` · <a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" rel="noopener">mapa</a>` : ""}`])); }
@@ -272,7 +278,7 @@ function hojeCard(ds, t) {
     <div class="muted" style="font-size:.85rem">${esc(c.short || c.name)}</div>
     <div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando o tempo…</span></div>
     <ul class="hlist">${rows.map(([ic, h]) => `<li><span>${ic}</span><div>${h}</div></li>`).join("")}</ul>
-    ${tag === "Hoje" ? `<div class="grid2"><button class="btn primary" data-act="sendLoc">📍 Minha localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
+    ${tag === "Hoje" ? `<a class="btn primary block" href="#pilotando">🏍️ Modo pilotando</a><div class="grid2"><button class="btn" data-act="sendLoc">📍 Minha localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
     <div class="row"><button class="btn sm" data-act="wxDay" data-id="${d.id}">Tempo do dia</button><button class="btn sm" data-act="mapCirc" data-v="${d.circ}">Ver no mapa</button><a class="btn sm" href="#roadbook">Roadbook</a></div>
     ${nx ? `<p class="muted" style="font-size:.8rem">Depois: ${wd(nx.date)} ${fmtD(nx.date)} · ${esc(nx.title)}${nx.saida ? " · saída " + nx.saida.replace(":", "h") : ""}</p>` : ""}
   </div>`;
@@ -298,6 +304,7 @@ function roteiro() {
       <div class="body">
         ${d.via ? `<div><div class="label">Caminho</div><div style="font-size:.9rem">${esc(d.via)}</div></div>` : ""}
         <div><div class="label">${isRoad(d) && tripEnds(d)[1] ? "Tempo no caminho" : "Tempo"}</div><div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando…</span></div></div>
+        ${isRoad(d) && tripEnds(d)[1] ? `<div><div class="label">Abastecimento</div><div data-fuel="${d.id}"><span class="muted" style="font-size:.85rem">Calculando…</span></div></div>` : ""}
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
@@ -573,9 +580,12 @@ const ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
   out:  '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
   shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+  ride: '<circle cx="12" cy="12" r="9"/><path d="M12 12l4-3M12 3v2M3 12h2M19 12h2"/>',
   fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 9h6"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
 };
 const mi = (href, icon, label, extra) => `<a href="${href}" class="mitem"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[icon]}</svg><span>${label}</span>${extra ? `<small>${extra}</small>` : ""}</a>`;
+const revTag = id => { const n = id ? revOf(id).filter(x => !x.done).length : 0; return n ? `${n} a fazer` : "manutenção"; };
 const consumoTag = id => { const r = id && logStats(id).real; return r ? `${num(r, 1)} km/L real` : "consumo real"; };
 function openMenu() {
   const conf = Object.values(S.lodging || {}).filter(l => l.status === "confirmada").length;
@@ -598,7 +608,9 @@ function openMenu() {
       ${mi("#roadbook", "book", "Roadbook", "10×15 · PDF")}</div>
     <div class="mgroup"><div class="label">Na estrada</div>
       ${mi("#seguranca", "shield", "Segurança", "localização e fichas")}
-      ${mi("#diario", "fuel", "Diário de bordo", consumoTag(m))}</div>
+      ${mi("#pilotando", "ride", "Modo pilotando", "tela grande")}
+      ${mi("#diario", "fuel", "Diário de bordo", consumoTag(m))}
+      ${mi("#revisao", "wrench", "Revisão das motos", revTag(m))}</div>
     <div class="mgroup"><div class="label">App</div>
       ${mi("#ajustes", "gear", "Ajustes", "gasolina e backup")}
       ${mi("#sobre", "info", "Sobre", `versão ${esc(self.APP_VERSION || "?")}`)}</div>
@@ -1126,6 +1138,149 @@ function logForm(e) {
   });
 }
 
+/* ---------- ABASTECIMENTO NA ROTA ---------- */
+const autonomia = id => (Number(S.riders?.[id]?.tanque) || 0) * (consumoDe(id) || 0);
+// Postos marcados no mapa (tipo Posto) que ficam perto do caminho entram como opção de parada
+function postosOnRoute(R) {
+  const out = [];
+  allPoints().filter(p => p.type === "posto" && p.lat != null).forEach(p => {
+    for (let i = 1; i < R.stops.length; i++) {
+      const a = R.stops[i - 1], b = R.stops[i], da = distKm(a, p), db = distKm(p, b);
+      if (da + db - distKm(a, b) < 15) { out.push({ name: p.name, km: Math.round(a.km + (b.km - a.km) * da / (da + db)), posto: true, lat: p.lat, lng: p.lng }); break; }
+    }
+  });
+  return out;
+}
+function planFuel(cands, total, safe) {
+  const out = []; let pos = 0, warn = null;
+  while (total - pos > safe) {
+    const reach = cands.filter(x => x.km > pos && x.km - pos <= safe && x.km < total);
+    if (!reach.length) { const nx = cands.find(x => x.km > pos && x.km < total); warn = { from: pos, gap: (nx ? nx.km : total) - pos, to: nx ? nx.name : null }; break; }
+    const pick = reach[reach.length - 1]; out.push(pick); pos = pick.km;
+  }
+  return { stops: out, warn };
+}
+const fuelCache = new Map();
+async function fuelPlanDay(d) {
+  if (!isRoad(d) || !tripEnds(d)[1]) return null;
+  const R = await routeStops(d); if (!R) return null;
+  const total = R.stops[R.stops.length - 1].km;
+  const cands = [...R.stops.slice(1), ...postosOnRoute(R)].sort((a, b) => a.km - b.km);
+  return { R, total, dest: R.stops[R.stops.length - 1].name, riders: riderIds().map(id => { const aut = autonomia(id); return aut ? { id, aut, ...planFuel(cands, total, aut * .8) } : { id, missing: true }; }) };
+}
+function fuelHTML(P, mode) {
+  if (!P) return mode === "rb" ? "—" : "";
+  const nm = s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`;
+  if (mode === "rb") return P.riders.map(r => `${esc(rname(r.id))}: ${r.missing ? "—" : r.stops.length ? r.stops.map(s => `${nm(s)} (${num(s.km)})`).join(", ") : "um tanque dá"}`).join(" · ");
+  const line = r => r.missing ? `<b>${esc(rname(r.id))}</b>: <a href="#pilotos">informar tanque e consumo</a>`
+    : `<b>${esc(rname(r.id))}</b>${mode === "short" ? "" : ` <span class="muted">(~${num(r.aut)} km/tanque)</span>`}: ${r.stops.length ? "abastecer em " + r.stops.map(s => `<b>${nm(s)}</b> <span class="muted">${num(s.km)} km</span>`).join(" → ") : `um tanque dá até ${esc(P.dest)}`}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada${r.warn.to ? " até " + esc(r.warn.to) : ""}</span>` : ""}`;
+  if (mode === "short") return `${num(P.total)} km · ${P.riders.map(line).join(" · ")}`;
+  return `<ul class="hlist">${P.riders.map(r => `<li><span>⛽</span><div>${line(r)}</div></li>`).join("")}</ul>
+    ${P.riders.some(r => r.warn) ? `<p class="note">Trecho maior que a autonomia segura sem cidade no caminho: marque um posto no mapa (tipo <b>Posto de combustível</b>) que ele entra na conta.</p>` : ""}
+    <p class="muted" style="font-size:.75rem">Saindo de tanque cheio e guardando 20% de reserva. Postos marcados no mapa perto do caminho também contam.</p>`;
+}
+function fillFuel() {
+  document.querySelectorAll("[data-fuel]").forEach(el => {
+    const d = days().find(x => x.id === el.dataset.fuel); if (!d) return;
+    fuelPlanDay(d).then(P => { if (el.isConnected && (P || el.dataset.mode === "rb")) el.innerHTML = fuelHTML(P, el.dataset.mode); });
+  });
+}
+
+/* ---------- REVISÃO DAS MOTOS ---------- */
+const REV_SUG = ["Troca de óleo e filtro", "Kit relação", "Pneu dianteiro", "Pneu traseiro", "Pastilhas de freio", "Fluido de freio", "Bateria", "Velas", "Filtro de ar", "Suspensão e retentores", "Lâmpadas e farol", "Cabos (embreagem e acelerador)"];
+const revOf = id => Object.entries(S.riders?.[id]?.revisao || {}).map(([k, v]) => ({ id: k, ...v })).sort((a, b) => (a.done - b.done) || (a.created || 0) - (b.created || 0));
+function revisao() {
+  const id = viewRider, list = revOf(id), mine = canEdit(id);
+  const todo = list.filter(x => !x.done), done = list.filter(x => x.done), total = done.reduce((s, x) => s + (Number(x.valor) || 0), 0);
+  const have = new Set(list.map(x => x.item.toLowerCase()));
+  const row = x => `<button type="button" class="logrow" ${mine ? `data-act="editRev" data-id="${x.id}"` : "disabled"}><div><b>${x.done ? "✓ " : ""}${esc(x.item)}</b><small>${[x.date ? `${wd(x.date)} ${fmtD(x.date)}` : "", x.km ? num(x.km) + " km" : "", x.obs || ""].filter(Boolean).map(esc).join(" · ") || (x.done ? "feito" : "a fazer")}</small></div>
+    <div class="r">${x.valor ? `<b class="num">${brl(x.valor)}</b>` : ""}${x.prep ? `<small>em Meus gastos</small>` : ""}</div></button>`;
+  return `${backLink}<div class="between"><h2>Revisão das motos</h2>${mine ? `<button class="btn sm primary" data-act="newRev">+ Item</button>` : ""}</div>
+  ${riderSeg(false)}
+  <div class="stats"><div class="stat"><div class="v">${todo.length}</div><div class="k">a fazer antes da viagem</div></div><div class="stat"><div class="v" style="font-size:1.5rem">${brl(total)}</div><div class="k">${done.length} ${done.length === 1 ? "item feito" : "itens feitos"}</div></div></div>
+  <div class="card stack"><h3>A fazer</h3>${todo.length ? `<div class="loglist">${todo.map(row).join("")}</div>` : `<p class="muted">Nada pendente${list.length ? ". Moto pronta 🏍️" : "."}</p>`}
+    ${mine ? `<div class="label">Sugestões</div><div class="seq">${REV_SUG.filter(s => !have.has(s.toLowerCase())).map(s => `<button type="button" class="chipbtn" data-act="addRev" data-v="${esc(s)}">+ ${esc(s)}</button>`).join("")}</div>` : ""}</div>
+  ${done.length ? `<div class="card stack"><h3>Feito</h3><div class="loglist">${done.map(row).join("")}</div></div>` : ""}
+  <p class="note">Ao marcar como feito com valor, dá para lançar o custo em <b>Meus gastos</b> (só você vê), na categoria Moto.</p>`;
+}
+function revForm(x) {
+  const id = canEdit(viewRider) ? viewRider : me(), isNew = !x?.id, own = id === me() || ST.mode === "local";
+  x = { item: "", done: false, date: todayISO(), km: "", valor: "", obs: "", ...(x || {}) };
+  openSheet(`<h3>${isNew ? "Novo item" : "Editar item"}</h3><form id="rvF" class="stack">
+    <label class="field"><span>Item</span><input id="rvI" value="${esc(x.item)}" required placeholder="Ex.: troca de óleo"></label>
+    <label class="check"><input type="checkbox" id="rvD" ${x.done ? "checked" : ""}> Feito</label>
+    <div class="grid2"><label class="field"><span>Data</span><input id="rvDt" type="date" value="${x.date || ""}"></label><label class="field"><span>Hodômetro (km)</span><input id="rvK" inputmode="numeric" value="${x.km ?? ""}"></label></div>
+    <div class="grid2"><label class="field"><span>Valor (R$)</span><input id="rvV" inputmode="decimal" value="${x.valor ?? ""}"></label><label class="field"><span>Oficina / obs.</span><input id="rvO" value="${esc(x.obs || "")}"></label></div>
+    ${own && !x.prep ? `<label class="check"><input type="checkbox" id="rvP" checked> Lançar o valor em Meus gastos</label>` : ""}
+    <div class="actions">${isNew ? `<button type="button" class="btn" data-close="1">Cancelar</button>` : `<button type="button" class="btn danger" id="rvDel">Excluir</button>`}<button class="btn primary">Salvar</button></div></form>`, sh => {
+    sh.querySelector("#rvF").addEventListener("submit", ev => { ev.preventDefault();
+      const item = sh.querySelector("#rvI").value.trim(); if (!item) return;
+      const rid = x.id || newId(), valor = parseNum(sh.querySelector("#rvV").value), done = sh.querySelector("#rvD").checked;
+      const data = { item, done, date: sh.querySelector("#rvDt").value, km: parseNum(sh.querySelector("#rvK").value), valor, obs: sh.querySelector("#rvO").value.trim(), created: x.created || Date.now(), prep: x.prep || null };
+      const pc = sh.querySelector("#rvP");
+      if (pc?.checked && done && valor) { data.prep = newId(); store.putPrep(data.prep, { cat: "moto", desc: item, amount: Math.round(valor * 100) / 100, date: data.date, liters: null, ppl: null, created: Date.now(), show: false }); }
+      else if (x.prep && valor && own) store.putPrep(x.prep, { ...(S.prep?.[x.prep] || { cat: "moto", show: false, created: Date.now() }), desc: item, amount: Math.round(valor * 100) / 100, date: data.date });
+      store.merge("riders/" + id, { revisao: { [rid]: data } }); closeSheet(); toast(data.prep && !x.prep ? "Salvo e lançado em Meus gastos" : "Salvo");
+    });
+    const del = sh.querySelector("#rvDel"); let armed = false;
+    del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; }
+      store.merge("riders/" + id, { revisao: { [x.id]: null } }); closeSheet(); toast("Item excluído (o gasto, se lançado, continua em Meus gastos)"); });
+  });
+}
+
+/* ---------- MODO PILOTANDO ---------- */
+let rideWatch = null, rideLock = null, rideClock = null, ridePos = null;
+function startRide() {
+  if (rideWatch == null && navigator.geolocation) rideWatch = navigator.geolocation.watchPosition(p => { ridePos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now(), speed: p.coords.speed }; fillRide(); }, () => {}, { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 });
+  if (!rideLock && navigator.wakeLock) navigator.wakeLock.request("screen").then(l => { rideLock = l; l.addEventListener?.("release", () => { rideLock = null; }); }).catch(() => {});
+  if (!rideClock) rideClock = setInterval(fillRide, 30000);
+}
+function stopRide() {
+  if (rideWatch != null) { navigator.geolocation.clearWatch(rideWatch); rideWatch = null; }
+  if (rideLock) { rideLock.release().catch(() => {}); rideLock = null; }
+  if (rideClock) { clearInterval(rideClock); rideClock = null; }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && route === "pilotando" && !rideLock && navigator.wakeLock) navigator.wakeLock.request("screen").then(l => { rideLock = l; }).catch(() => {}); });
+function rideDay() { const ds = days(), t = todayISO(); return ds.find(d => d.date === t) || ds.find(d => d.date > t) || ds[ds.length - 1]; }
+function pilotando() {
+  const d = rideDay(); if (!d) return `<p>Sem dias no roteiro.</p>`;
+  return `<div class="ride">
+    <div class="ride-top"><div><div class="ride-clock" id="rideClock">--h--</div><div class="ride-day">${wd(d.date)} ${fmtD(d.date)} · ${esc(d.title)}</div></div><a class="btn" href="#inicio">Sair</a></div>
+    <div id="rideBody" class="ride-body"><p class="muted">Carregando…</p></div>
+    <div class="ride-btns"><button class="btn primary" data-act="sendLoc">📍 Localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button><a class="btn sos1" href="tel:192">📞 192</a></div>
+    <p class="ride-note" id="rideGps">${navigator.geolocation ? "Procurando GPS…" : "GPS indisponível: posição estimada pelo horário."} A tela fica acesa enquanto este modo estiver aberto.</p>
+  </div>`;
+}
+async function fillRide() {
+  const body = $("#rideBody"); if (!body) return;
+  const now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+  const ck = $("#rideClock"); if (ck) ck.textContent = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
+  const d = rideDay(), m = me() || riderIds()[0];
+  const gps = $("#rideGps"); if (gps && ridePos) gps.textContent = `GPS ok · atualizado às ${pad(new Date(ridePos.at).getHours())}h${pad(new Date(ridePos.at).getMinutes())}. A tela fica acesa enquanto este modo estiver aberto.`;
+  const w = await dayWx(d), hrNow = w?.day?.hours?.find(h => h.h === now.getHours());
+  const wxTile = hrNow ? `<div class="rt"><small>Tempo agora · ${esc(w.loc.name)}</small><b>${wxInfo(hrNow.code, !hrNow.day).icon} ${tC(hrNow.t)}</b><span>${hrNow.prob != null ? `chuva ${hrNow.prob}%` : ""}</span></div>` : "";
+  if (isRoad(d) && tripEnds(d)[1]) {
+    const P = await fuelPlanDay(d); if (!P || !body.isConnected) { body.innerHTML = wxTile; return; }
+    const S2 = P.R.stops, total = P.total; let cur;
+    if (ridePos) { let best = null;
+      for (let i = 1; i < S2.length; i++) { const a = S2[i - 1], b = S2[i], da = distKm(a, ridePos), db = distKm(ridePos, b), det = da + db - distKm(a, b);
+        if (!best || det < best.det) best = { det, km: a.km + (b.km - a.km) * da / Math.max(.1, da + db) }; }
+      cur = best.km; }
+    else { const t0 = toH(d.saida) ?? 6; cur = Math.max(0, Math.min(total, (nowH - t0) * avgSpeed())); }
+    const next = S2.find(s => s.km > cur + 1) || S2[S2.length - 1], left = Math.max(0, total - cur);
+    const mf = P.riders.find(r => r.id === m), nf = mf && !mf.missing ? mf.stops.find(s => s.km > cur + 1) : null;
+    body.innerHTML = `
+      <div class="rt big"><small>Próxima cidade</small><b>${esc(next.name)}</b><span>${num(Math.max(0, next.km - cur))} km</span></div>
+      <div class="rt"><small>Destino · ${esc(P.dest)}</small><b>${num(left)} km</b><span>chegada ~${hhmm(nowH + left / avgSpeed())}</span></div>
+      <div class="rt ${nf && nf.km - cur < 40 ? "hot" : ""}"><small>Abastecer (${esc(rname(m))})</small><b>${mf?.missing ? "—" : nf ? `${nf.posto ? "⛽ " : ""}${esc(nf.name)}` : "até o destino"}</b><span>${nf ? `em ${num(nf.km - cur)} km` : mf?.missing ? "informe tanque e consumo" : "um tanque dá"}</span></div>
+      ${wxTile}`;
+  } else {
+    const ps = allPoints().filter(p => p.circ === d.circ && p.lat != null);
+    const lst = ps.map(p => ({ p, km: ridePos ? distKm(ridePos, p) : null })).sort((a, b) => ridePos ? a.km - b.km : (a.p.order || 0) - (b.p.order || 0));
+    body.innerHTML = `${wxTile}<div class="rt"><small>Pontos do dia</small><ul class="ride-list">${lst.map(o => `<li><a href="https://www.google.com/maps/dir/?api=1&destination=${o.p.lat},${o.p.lng}" target="_blank" rel="noopener">${esc(o.p.name)}</a><span>${o.km != null ? num(o.km, o.km < 10 ? 1 : 0) + " km" : ""}</span></li>`).join("") || "<li>Sem pontos marcados</li>"}</ul></div>`;
+  }
+}
+
 /* ---------- TEMPO ---------- */
 const tC = v => v == null ? "—" : Math.round(v) + "°";
 const low = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -1335,6 +1490,7 @@ function roadbook() {
       <header class="rb-head"><span>Dia ${i + 1} de ${ds.length}</span><span>${wd(d.date)} ${fmtD(d.date)}</span></header>
       <h3 class="rb-title">${esc(d.title)}</h3>
       <div class="rb-meta"><div><span>Saída</span><b>${d.saida ? d.saida.replace(":", "h") : "—"}</b></div><div><span>Moto</span><b>${d.km ? num(d.km) + " km" : "—"}</b></div><div><span>Tempo</span><b data-wx="${d.id}" data-mode="rb">—</b></div></div>
+      ${isRoad(d) && tripEnds(d)[1] ? `<div class="rb-sec"><span>Abastecer</span><p data-fuel="${d.id}" data-mode="rb">—</p></div>` : ""}
       ${via.length > 1 ? `<div class="rb-sec"><span>Caminho</span><ol class="rb-via">${via.map(v => `<li>${esc(v)}</li>`).join("")}</ol></div>` : via.length ? `<div class="rb-sec"><span>Caminho</span><p>${esc(via[0])}</p></div>` : ""}
       ${pts.length ? `<div class="rb-sec"><span>Pontos</span><ol class="rb-pts">${pts.map(p => { const km = fromPousada(p); return `<li><b>${p.order || "•"}</b> ${esc(p.name)}${km != null ? ` <em>${num(km, km < 10 ? 1 : 0)} km</em>` : ""}${p.lat == null ? " <em>sem posição</em>" : ""}</li>`; }).join("")}</ol></div>` : ""}
       ${note ? `<p class="rb-note">${esc(note)}</p>` : ""}
@@ -1357,6 +1513,9 @@ $("#view").addEventListener("click", e => {
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
   else if (act === "sendLoc") sendAlert("loc");
+  else if (act === "newRev") { if (canEdit(viewRider)) revForm(null); }
+  else if (act === "addRev") { if (canEdit(viewRider)) revForm({ item: b.dataset.v }); }
+  else if (act === "editRev") { if (!canEdit(viewRider)) return; const x = S.riders[viewRider]?.revisao?.[id]; if (x) revForm({ id, ...x }); }
   else if (act === "sendOk") sendAlert("ok");
   else if (act === "editEmerg") { if (canEdit(id) || isAdmin()) emergForm(id); }
   else if (act === "newLog") { if (canEdit(viewRider)) logForm(null); }
