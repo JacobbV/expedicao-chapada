@@ -936,6 +936,18 @@ function pointForm(p, ll) {
 }
 /* Ligar pontos: rota de cada circuito saindo e voltando à pousada */
 const cssColor = v => { const m = /var\((--[\w-]+)\)/.exec(v); return m ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || "#666" : v; };
+// Linha da estrada: segue as cidades do Caminho dos dias de ida (até Lençóis), na ordem
+async function roadPath() {
+  const out = []; let seen = false;
+  for (const d of days()) {
+    if (!isRoad(d) || !tripEnds(d)[1]) continue;
+    if (low(cleanCity(tripEnds(d)[0])).startsWith("lencois")) break; // volta: mesmo corredor
+    const R = await routeStops(d); if (!R) continue; seen = true;
+    R.stops.forEach(st => { const last = out[out.length - 1]; if (!last || distKm(last, st) > 2) out.push({ lat: st.lat, lng: st.lng }); });
+  }
+  const base = S.points?.pousada; if (seen && base?.lat != null && distKm(out[out.length - 1], base) > .5) out.push({ lat: base.lat, lng: base.lng });
+  return seen && out.length >= 2 ? out : null;
+}
 function routePlans() {
   const ps = allPoints().filter(p => p.lat != null && p.lng != null);
   const base = S.points?.pousada && S.points.pousada.lat != null ? { lat: S.points.pousada.lat, lng: S.points.pousada.lng } : null;
@@ -969,6 +981,9 @@ async function updateRoutes() {
   const box = $("#routeBox"); if (!mapView || !box) return;
   if (!linkOn) { mapView.setRoutes(null); box.innerHTML = ""; routeKey = ""; return; }
   const plans = routePlans();
+  const ep = plans.find(p => p.circ === "estrada");
+  if (ep) { const rp = await roadPath(); if (rp) ep.path = rp.map(p => [p.lat, p.lng]); }
+  if (!mapView || !$("#routeBox")) return;
   const key = mapFilter + "|" + JSON.stringify(plans.map(p => p.path));
   if (key === routeKey) return; routeKey = key; const seq = ++routeSeq;
   if (!plans.length) { mapView.setRoutes(null); box.innerHTML = `<div class="card"><p class="muted">Sem pontos com posição para ligar neste filtro.</p></div>`; return; }
@@ -981,7 +996,7 @@ async function updateRoutes() {
     box.innerHTML = `<div class="card stack"><div class="between"><h3>Distâncias</h3>${rows.length > 1 ? `<span class="num" style="font-weight:700">Total ≈ ${num(total)} km</span>` : ""}</div>
       <div class="tablebox"><table><tbody>${rows.map(r => `<tr><td><i class="rdot" style="background:${pcolor(r.circ)}"></i>${esc(CIRC_BASE[r.circ] || r.circ)}</td>
         <td class="r num"><b>≈ ${num(r.km, r.km < 10 ? 1 : 0)} km</b></td><td class="muted" style="font-size:.8rem">${r.road ? "pela estrada" : r.foot ? "a pé, em linha reta" : "em linha reta"}${r.missing ? ` · ${r.missing} sem posição` : ""}</td></tr>`).join("")}</tbody></table></div>
-      <p class="note">${mapFilter === "estrada" ? "Catolé → Petrolina → pousada." : "Cada circuito sai e volta para a pousada, na ordem dos números."} Linha cheia = rota pela estrada (OpenStreetMap/OSRM); tracejada = linha reta, usada a pé ou quando não há internet. Pontos de trilha contam até a estrada mais próxima. É estimativa: confira antes de ir.</p></div>`;
+      <p class="note">${mapFilter === "estrada" ? "Ida pelas cidades do Caminho dos dias de estrada, até a pousada." : "Cada circuito sai e volta para a pousada, na ordem dos números."} Linha cheia = rota pela estrada (OpenStreetMap/OSRM); tracejada = linha reta, usada a pé ou quando não há internet. Pontos de trilha contam até a estrada mais próxima. É estimativa: confira antes de ir.</p></div>`;
   };
   draw();
   await Promise.all(rows.map(async r => { if (r.foot) return; const rr = await roadRoute(r.path); if (rr) { r.km = rr.km; r.line = rr.line; r.road = true; } }));
@@ -1051,7 +1066,7 @@ function sobre() {
       ${l ? `<div class="socials">${l}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
       ${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}" style="justify-self:start">${id === me() ? "Editar meus contatos" : "Editar contatos"}</button>` : ""}</div>`; }).join("")}
   <div class="card stack"><h3>Créditos</h3>
-    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
+    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap, estilo CARTO · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
     <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
 }

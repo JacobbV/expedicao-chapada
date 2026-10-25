@@ -30,7 +30,7 @@ self.addEventListener("fetch", e => {
     return;
   }
   // Mapa: azulejos do OpenStreetMap ficam guardados para abrir sem sinal as áreas já vistas
-  if (url.hostname === "tile.openstreetmap.org") {
+  if (url.hostname === "tile.openstreetmap.org" || url.hostname.endsWith("basemaps.cartocdn.com")) {
     e.respondWith(caches.open(TILES).then(async c => {
       const hit = await c.match(req); if (hit) return hit;
       try {
