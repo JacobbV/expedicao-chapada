@@ -154,6 +154,7 @@ function render() {
   renderTop();
   if (!me() && !$("#layer").innerHTML) pickMe(true);
   migrateLegacy();
+  migrateRoute();
   fillWx();
   fillFuel();
   newsCheck();
@@ -334,7 +335,8 @@ function dayForm(d) {
       <label class="field"><span>Título</span><input id="dTitle" value="${esc(d.title)}" required></label>
       <div class="grid2"><label class="field"><span>Tipo / circuito</span><select id="dCirc">${opts}</select></label>
       <label class="field"><span>Km de moto</span><input id="dKm" inputmode="decimal" value="${d.km ?? ""}"></label></div>
-      <label class="field"><span>Caminho / cidades</span><input id="dVia" value="${esc(d.via || "")}"></label>
+      <label class="field"><span>Caminho / cidades</span><input id="dVia" value="${esc(d.via || "")}"><small>Separe com “ · ”. Usado no tempo, no abastecimento e no Modo pilotando.</small></label>
+      <label class="field"><span>Rota no Google Maps (link)</span><input id="dGm" inputmode="url" value="${esc(d.gmaps || "")}" placeholder="https://maps.app.goo.gl/…"><small>No Google Maps, monte a rota do jeito que vocês vão, toque em Compartilhar e cole o link aqui. O botão Google Maps passa a abrir exatamente essa rota.</small></label>
       <label class="field"><span>Observações</span><textarea id="dNotes">${esc(d.notes || "")}</textarea></label>
       <div class="actions"><button type="button" class="btn danger" id="dDel">Remover</button><button class="btn primary" type="submit">Salvar</button></div>
     </form>`, sh => {
@@ -342,7 +344,7 @@ function dayForm(d) {
       e.preventDefault();
       const nd = { ...d, date: $("#dDate").value || d.date, saida: $("#dSaida").value, title: $("#dTitle").value.trim() || d.title, circ: $("#dCirc").value,
         tipo: ["c1", "c2", "c3"].includes($("#dCirc").value) ? "passeio" : $("#dCirc").value === "folga" ? "folga" : "estrada",
-        km: parseNum($("#dKm").value), via: $("#dVia").value.trim(), notes: $("#dNotes").value.trim() };
+        km: parseNum($("#dKm").value), via: $("#dVia").value.trim(), notes: $("#dNotes").value.trim(), gmaps: /^https?:\/\//.test($("#dGm").value.trim()) ? $("#dGm").value.trim() : "" };
       store.merge("trip", { days: S.trip.days.map(x => x.id === d.id ? nd : x) }); closeSheet(); toast("Dia salvo");
     });
     let armed = false;
@@ -566,6 +568,27 @@ function openExpense(id, kind) {
 }
 // Gastos antigos de manutenção/equipamento (v1.0/1.1) passam para os gastos privados de quem pagou
 let migrating = false;
+// Rota corrigida (v1.14.3): troca o caminho antigo que vinha no app pelo caminho combinado.
+// Só mexe nos dias que ainda estão com o texto/km antigos; o que o grupo editou fica como está.
+const ROUTE_V = 3;
+function migrateRoute() {
+  if (!S.trip || (S.trip.routeV || 0) >= ROUTE_V || (ST.mode === "cloud" && !ST.user)) return;
+  const N1 = "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina";
+  const N2 = "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis";
+  let changed = false;
+  const nd = S.trip.days.map(d => {
+    const [o, de] = tripEnds(d).map(x => low(cleanCity(x))); let x = d;
+    if (o.startsWith("catole") && de.startsWith("petrolina") && (/pombal/i.test(d.via || "") || [548, 563].includes(Number(d.km)))) {
+      x = { ...d, via: N1, km: 565, notes: /BR-407 como refer|PB-325 → BR-230 → BR-116/.test(d.notes || "") || !d.notes ? "PB-325 até o trevo da BR-230 (sem entrar em Pombal), à direita sentido Sousa → BR-116 pelo Ceará → BR-232 → BR-428. Chegar de dia." : d.notes }; }
+    else if (o.startsWith("petrolina") && de.startsWith("lencois") && /capim grosso|ruy barbosa|mairi/i.test(d.via || "")) {
+      x = { ...d, via: N2, km: 528, notes: (d.notes || "").includes("BR-407 → BA-131") ? d.notes : ("BR-407 → BA-131 → BR-324 → BA-144 (Morro do Chapéu) → BA-046/BA-142 → BR-242. " + (d.notes || "")).trim() }; }
+    else if (o.startsWith("lencois") && de.startsWith("petrolina") && [487].includes(Number(d.km))) x = { ...d, km: 528 };
+    else if (o.startsWith("petrolina") && de.startsWith("catole") && [548, 563].includes(Number(d.km))) x = { ...d, km: 565 };
+    if (x !== d) changed = true; return x;
+  });
+  store.merge("trip", changed ? { days: nd, routeV: ROUTE_V } : { routeV: ROUTE_V });
+  if (changed) toast("Roteiro atualizado com a rota corrigida (sem Pombal, ida por Jacobina e Morro do Chapéu)");
+}
 function migrateLegacy() {
   if (migrating) return; const m = me(); if (!m) return;
   if (ST.mode === "cloud" && (!ST.uid || ST.prepError)) return;
@@ -1352,11 +1375,13 @@ async function navTargets(d, fromHere) {
 }
 const ll2 = p => `${p.lat},${p.lng}`;
 async function navOpen(d, app, fromHere) {
+  // rota salva pelo grupo (link do Google Maps) vale mais que a montada pelo app; no meio do caminho, sai da posição atual
+  if (app === "google" && d.gmaps && !(fromHere && rideCur > 5)) { location.href = d.gmaps; return; }
   const T = await navTargets(d, fromHere); if (!T) { toast("Sem pontos com posição para navegar neste dia"); return; }
   location.href = app === "waze" ? `https://waze.com/ul?ll=${ll2(T.dest)}&navigate=yes`
     : `https://www.google.com/maps/dir/?api=1${T.origin ? "&origin=" + ll2(T.origin) : ""}&destination=${ll2(T.dest)}${T.wps.length ? "&waypoints=" + T.wps.map(ll2).join("%7C") : ""}&travelmode=driving`;
 }
-const navBtns = (d, here) => `<div class="navbtns"><button class="btn sm" data-act="navG" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>🧭 Google Maps</button><button class="btn sm" data-act="navW" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>Waze</button></div>`;
+const navBtns = (d, here) => `<div class="navbtns"><button class="btn sm" data-act="navG" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>🧭 Google Maps${d.gmaps ? " · rota de vocês" : ""}</button><button class="btn sm" data-act="navW" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>Waze</button></div>`;
 
 /* ---------- EXPORTAR GASTOS (planilha) ---------- */
 function downloadCSV(name, rows) {

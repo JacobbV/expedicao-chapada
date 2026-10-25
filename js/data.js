@@ -94,7 +94,7 @@ export const POINTS_SEED = [
 
 export function seedDays(start = "2027-01-12") {
   const base = [
-    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 563, saida: "04:00",
+    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 565, saida: "04:00",
       via: "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina", notes: "PB-325 até o trevo da BR-230 (sem entrar em Pombal), à direita sentido Sousa → BR-116 (pelo Ceará) → BR-232 → BR-428. Chegar de dia." },
     { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 528, saida: "04:00",
       via: "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis", notes: "BR-407 → BA-131 → BR-324 → BA-144 (Morro do Chapéu) → BA-046/BA-142 → BR-242. Check-in, guardar as motos, centro histórico à noite." },
@@ -102,7 +102,7 @@ export function seedDays(start = "2027-01-12") {
     { tipo: "passeio", circ: "c2", title: "Circuito 2 · Capão, Fumaça, Riachinho", km: 180, saida: "06:30", via: "", notes: "" },
     { tipo: "passeio", circ: "c3", title: "Circuito 3 · Marimbus e Roncador", km: 50, saida: "", via: "", notes: "" },
     { tipo: "estrada", circ: "estrada", title: "Lençóis → Petrolina", km: 528, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Horário e pernoite a definir." },
-    { tipo: "estrada", circ: "estrada", title: "Petrolina → Catolé do Rocha", km: 563, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Chegada em casa." },
+    { tipo: "estrada", circ: "estrada", title: "Petrolina → Catolé do Rocha", km: 565, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Chegada em casa." },
   ];
   return base.map((d, i) => ({ id: "d" + (i + 1), date: addDays(start, i), ...d }));
 }
