@@ -491,3 +491,8 @@ details.more[open]{display:grid;gap:8px}
 .via .arr{color:var(--stripe);font-weight:700}
 .fuel1>div+div{margin-top:2px}
 .hoje .fuel1{display:block}
+.mapstyle{margin-top:-6px}
+.map-dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.6)}
+.credits{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:.88rem}
+.credits li{display:grid;gap:1px}
+.credits span{color:var(--muted);font-size:.8rem}

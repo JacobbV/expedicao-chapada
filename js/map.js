@@ -46,15 +46,26 @@ export function distKm(a, b) {
 }
 
 export class MapView {
-  constructor(L, el, { onPin, onPlace }) {
+  constructor(L, el, opts) {
+    const { onPin, onPlace } = opts;
     this.L = L; this.el = el; this.onPin = onPin; this.onPlace = onPlace;
     this.markers = new Map(); this.placing = null; this.dragId = null; this.lastFitKey = "";
     this.map = L.map(el, { zoomControl: true, tap: true }).setView([-12.5, -41.43], 10);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-    }).addTo(this.map);
+    this.tiles = null; this.setStyle(opts.style || "padrao");
     this.map.on("click", e => { if (this.placing) { const fn = this.placing; this.placing = null; this.el.classList.remove("placing"); fn(e.latlng); } });
     this.map.on("contextmenu", e => { if (!this.placing && !this.dragId) this.onPlace(e.latlng); });
+  }
+  // Estilos de mapa, todos grátis e sem chave:
+  // padrao = OpenStreetMap; relevo = OpenTopoMap (curvas de nível, bom para serra e chapada); escuro = OpenStreetMap com filtro escuro
+  setStyle(style) {
+    const L = this.L, OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+    const def = style === "relevo"
+      ? ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 17, subdomains: "abc", attribution: `Mapa: ${OSM}, <a href="http://viewfinderpanoramas.org" target="_blank" rel="noopener">SRTM</a> · Estilo: &copy; <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC-BY-SA</a>)` }]
+      : ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM }];
+    if (this.tiles) this.map.removeLayer(this.tiles);
+    this.tiles = L.tileLayer(def[0], def[1]).addTo(this.map);
+    this.el.classList.toggle("map-dark", style === "escuro");
+    this.style = style;
   }
   alive() { return document.body.contains(this.el); }
   // pts: [{id, lat, lng, color, type, order, name}]

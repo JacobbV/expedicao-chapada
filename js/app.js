@@ -872,6 +872,7 @@ function mapa() {
   <div class="filters" id="mapChips">${chipsHTML()}</div>
   <div id="mapBanner"></div>
   <div id="map" class="mapbox"><p class="muted" style="padding:16px">Carregando o mapa…</p></div>
+  <div class="seg mapstyle" role="group" aria-label="Estilo do mapa">${[["padrao", "🗺️ Padrão"], ["relevo", "⛰️ Relevo"], ["escuro", "🌙 Escuro"]].map(([k, l]) => `<button type="button" data-act="mapStyle" data-v="${k}" aria-pressed="${mapStyle() === k}">${l}</button>`).join("")}</div>
   <p class="note">Toque num pin para ver detalhes e abrir no Google Maps. Segure o dedo no mapa (ou use “+ Ponto”) para criar um ponto. O mapa só aparece sem internet nas áreas já abertas antes; para navegar sem sinal, baixe a região no Google Maps offline.</p>
   <div id="routeBox"></div>
   <div id="mapList" class="stack">${listHTML()}</div>`;
@@ -881,12 +882,13 @@ function updateMapParts() {
   mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
   updateRoutes();
 }
+const mapStyle = () => { try { return localStorage.getItem("mapStyle") || "padrao"; } catch (e) { return "padrao"; } };
 function mountMap() {
   ensureLeaflet().then(L => {
     const el = $("#map"); if (route !== "mapa" || !el) return;
     if (mapView) { try { mapView.map.remove(); } catch (e) {} }
     el.innerHTML = "";
-    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll) });
+    mapView = new MapView(L, el, { onPin: id => pointSheet(id), onPlace: ll => pointForm(null, ll), style: mapStyle() });
     mapView.setPoints(mapPoints().map(p => ({ ...p, color: pcolor(p.circ) })), mapFilter);
     routeKey = ""; updateRoutes();
     mapView.invalidate();
@@ -1045,6 +1047,18 @@ const ABOUT_DEFAULT = { author: "Jacó", github: "https://github.com/JacobbV", i
   historia: "A ideia começou como uma conversa sobre a próxima viagem e virou a Expedição Chapada: cerca de 2.400 km de moto, de Catolé do Rocha até Lençóis, na Chapada Diamantina, em janeiro de 2027.",
   objetivos: "Conhecer cachoeiras, serras e mirantes da Chapada, como o Pai Inácio e a Fumaça; viajar com segurança e no ritmo das duas motos; gastar com consciência; e registrar tudo em fotos e vídeos.",
   appinfo: "Este aplicativo foi desenvolvido pelo Jacó para planejar e acompanhar a expedição: roteiro, mapa, checklist, gastos e hospedagem, funcionando até sem sinal na estrada." };
+// Tudo o que o app usa, com a fonte e a licença
+const CREDITS = [
+  ["OpenStreetMap", "https://www.openstreetmap.org/copyright", "dados e mapa padrão, © colaboradores do OpenStreetMap", "ODbL"],
+  ["OpenTopoMap", "https://opentopomap.org/about", "mapa de relevo (dados SRTM)", "CC-BY-SA 3.0"],
+  ["Leaflet", "https://leafletjs.com", "biblioteca do mapa", "BSD-2"],
+  ["OSRM", "https://project-osrm.org", "rotas pela estrada (servidor público de demonstração)", "BSD-2"],
+  ["Nominatim", "https://nominatim.org", "nome da cidade pela posição, dados do OpenStreetMap", "ODbL"],
+  ["Open-Meteo", "https://open-meteo.com", "previsão, histórico do tempo e busca de cidades (GeoNames)", "CC BY 4.0"],
+  ["Firebase", "https://firebase.google.com", "login e sincronização (Google)", ""],
+  ["GitHub Pages", "https://pages.github.com", "hospedagem do app", ""],
+  ["Google Fonts", "https://fonts.google.com", "fontes Big Shoulders Display, Public Sans e JetBrains Mono", "SIL OFL 1.1"],
+];
 const STORY = [["nos", "Quem somos"], ["historia", "Nossa história"], ["objetivos", "Objetivos e sonhos"], ["appinfo", "Sobre o app"]];
 const about = () => ({ ...ABOUT_DEFAULT, ...(S.trip?.about || {}) });
 const canEditAbout = () => isAdmin();
@@ -1081,8 +1095,8 @@ function sobre() {
       ${l ? `<div class="socials">${l}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
       ${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}" style="justify-self:start">${id === me() ? "Editar meus contatos" : "Editar contatos"}</button>` : ""}</div>`; }).join("")}
   <div class="card stack"><h3>Créditos</h3>
-    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
-    <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
+    <ul class="credits">${CREDITS.map(([n, url, what, lic]) => `<li><a href="${url}" target="_blank" rel="noopener">${n}</a><span>${what}${lic ? ` · ${lic}` : ""}</span></li>`).join("")}</ul>
+    <p class="muted" style="font-size:.82rem">Google Maps, Waze e WhatsApp são marcas de seus donos; o app só abre esses aplicativos. Distâncias, horários e tempo são estimativas: confira antes de ir.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
 }
 function socialForm(id) {
@@ -1889,6 +1903,8 @@ $("#view").addEventListener("click", e => {
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
   else if (act === "sendLoc") sendAlert("loc");
+  else if (act === "mapStyle") { try { localStorage.setItem("mapStyle", b.dataset.v); } catch (er) {} mapView?.setStyle(b.dataset.v);
+    document.querySelectorAll("[data-act=mapStyle]").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === b.dataset.v)); }
   else if (act === "clearCk") { const mine = checkins().filter(c => isAdmin() || c.rider === me()); if (!mine.length) return;
     if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = `Toque de novo para apagar ${mine.length}`; return; }
     store.merge("meta/checkins", mine.reduce((o, c) => (o[c.id] = null, o), {})); toast(`${mine.length} ${mine.length === 1 ? "aviso apagado" : "avisos apagados"}`); }

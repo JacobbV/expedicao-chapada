@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.4 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.5 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -80,7 +80,7 @@ O botão **Ligar pontos** desenha cada circuito saindo da pousada, passando pelo
 - É **estimativa**: estradas de terra e trechos novos podem estar diferentes no OpenStreetMap.
 
 ### Offline
-O mapa usa o OpenStreetMap. Sem internet, ele mostra só as áreas que **já foram abertas antes** naquele celular (o app guarda até cerca de 3.000 pedaços de mapa). Antes da viagem, abra o mapa com Wi-Fi e passeie pelo zoom de Lençóis, Capão e da rota. Para **navegar** sem sinal, baixe a região no **Google Maps offline**: o botão de cada ponto abre direto lá.
+O mapa tem três estilos, escolhidos embaixo dele e guardados no aparelho: **Padrão** (OpenStreetMap), **Relevo** (OpenTopoMap, com curvas de nível, bom para ver serras e a chapada) e **Escuro** (o mapa padrão com um filtro escuro). Todos são grátis e sem chave. Sem internet, ele mostra só as áreas que **já foram abertas antes** naquele celular (o app guarda até cerca de 3.000 pedaços de mapa). Antes da viagem, abra o mapa com Wi-Fi e passeie pelo zoom de Lençóis, Capão e da rota. Para **navegar** sem sinal, baixe a região no **Google Maps offline**: o botão de cada ponto abre direto lá.
 
 ### De onde vêm as posições
 As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada ponto mostra a fonte. Distâncias no mapa são **em linha reta** a partir da pousada, não pela estrada.
@@ -249,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.15.4** | 25/10/2026 | Mapa de volta ao fundo claro do OpenStreetMap (o estilo da CARTO passou a exigir chave). A linha da estrada e o Google Maps sem link agora usam **pontos de passagem pela estrada**, tirados das rotas do grupo (trevo da BR-230, BR-230 depois de Cajazeiras, BR-116 em Salgueiro, BR-428 em Cabrobó, Jacobina e Morro do Chapéu), sem entrar em Sousa e Cajazeiras |
+| **1.15.5** | 25/10/2026 | **Estilos de mapa** grátis e sem chave, escolhidos embaixo do mapa: Padrão (OpenStreetMap), Relevo (OpenTopoMap) e Escuro (filtro sobre o padrão). **Créditos completos** em Sobre e no README, com fonte e licença de cada serviço |
+| 1.15.4 | 25/10/2026 | Mapa de volta ao fundo claro do OpenStreetMap (o estilo da CARTO passou a exigir chave). A linha da estrada e o Google Maps sem link agora usam **pontos de passagem pela estrada**, tirados das rotas do grupo (trevo da BR-230, BR-230 depois de Cajazeiras, BR-116 em Salgueiro, BR-428 em Cabrobó, Jacobina e Morro do Chapéu), sem entrar em Sousa e Cajazeiras |
 | 1.15.3 | 25/10/2026 | **Mapa novo**: estilo da CARTO (claro “Voyager” ou escuro “Dark Matter”, conforme o tema do app), mais limpo que o padrão do OpenStreetMap. A **linha da estrada** no mapa agora passa pelas cidades do Caminho dos dias de ida (Sousa, Cajazeiras, Brejo Santo, Salgueiro, Cabrobó, Petrolina, Senhor do Bonfim, Jacobina, Morro do Chapéu, Utinga, Wagner) em vez de escolher outro caminho |
 | 1.15.2 | 25/10/2026 | Mensagens de **Localização** e **Cheguei bem** mais bonitas no WhatsApp: título em negrito, nome da cidade pela posição (OpenStreetMap), o dia da viagem e, na localização, quantos km faltam para o destino |
 | 1.15.1 | 25/10/2026 | Títulos de seção de volta nos cartões (Caminho, Tempo no caminho, Abastecimento; no Início também Horário e distância e Pernoite), caminho com setas entre as cidades e abastecimento como “Jacó: cidade → cidade” |
@@ -285,6 +286,22 @@ icons/                ícones
 | 1.0.2 | 24/10/2026 | Configuração real do Firebase; e-mails retirados do modelo de regras |
 | 1.0.1 | 24/10/2026 | Sincronização com Firebase ligada |
 | 1.0.0 | 24/10/2026 | Primeira versão: roteiro de 12 a 18/01, circuitos, checklist por piloto, gastos com acerto, hospedagem, pendências, modo offline e instalação como app |
+
+## Créditos e licenças
+
+| Serviço / biblioteca | Para que serve no app | Licença |
+|---|---|---|
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) | dados e mapa padrão, © colaboradores do OpenStreetMap | ODbL |
+| [OpenTopoMap](https://opentopomap.org/about) | mapa de relevo (dados SRTM) | CC-BY-SA 3.0 |
+| [Leaflet](https://leafletjs.com) | biblioteca do mapa | BSD-2 |
+| [OSRM](https://project-osrm.org) | rotas pela estrada (servidor público de demonstração) | BSD-2 |
+| [Nominatim](https://nominatim.org) | nome da cidade pela posição | dados ODbL |
+| [Open-Meteo](https://open-meteo.com) | previsão, histórico do tempo e busca de cidades (GeoNames) | CC BY 4.0 |
+| [Firebase](https://firebase.google.com) | login e sincronização | Google |
+| [GitHub Pages](https://pages.github.com) | hospedagem | GitHub |
+| [Google Fonts](https://fonts.google.com) | Big Shoulders Display, Public Sans, JetBrains Mono | SIL OFL 1.1 |
+
+Google Maps, Waze e WhatsApp são marcas de seus donos; o app só abre esses aplicativos. Os créditos também aparecem no app, em ☰ → Sobre.
 
 ## Autor
 
