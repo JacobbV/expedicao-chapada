@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.14.1 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.14.2 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -249,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.14.1** | 25/10/2026 | **Localização e Cheguei bem** agora abrem uma folha: pega a posição, mostra a mensagem e os botões **Enviar pelo WhatsApp** (abre o app direto, com a lista de conversas), **Outros apps…** e **Copiar texto**; se não achar a posição, explica o motivo e deixa tentar de novo. **Rota nova** no roteiro inicial: ida por Sousa, Cajazeiras e BR-116 pelo Ceará até Salgueiro e Cabrobó (563 km) e, no 2º dia, Juazeiro, Senhor do Bonfim, Jacobina, Morro do Chapéu, Utinga e Wagner até Lençóis (528 km) |
+| **1.14.2** | 25/10/2026 | Caminho do dia 1 sem Pombal: pela PB-325 até o trevo da BR-230 e à direita sentido Sousa |
+| 1.14.1 | 25/10/2026 | **Localização e Cheguei bem** agora abrem uma folha: pega a posição, mostra a mensagem e os botões **Enviar pelo WhatsApp** (abre o app direto, com a lista de conversas), **Outros apps…** e **Copiar texto**; se não achar a posição, explica o motivo e deixa tentar de novo. **Rota nova** no roteiro inicial: ida por Sousa, Cajazeiras e BR-116 pelo Ceará até Salgueiro e Cabrobó (563 km) e, no 2º dia, Juazeiro, Senhor do Bonfim, Jacobina, Morro do Chapéu, Utinga e Wagner até Lençóis (528 km) |
 | 1.14.0 | 25/10/2026 | **Navegar no Google Maps ou no Waze** (aparece no CarPlay): em cada dia e no Modo pilotando, com a rota do dia e até 3 cidades do caminho como paradas; nos passeios, os pontos do circuito; no Modo pilotando sai da sua posição. **Fotos por dia** (reduzidas e guardadas no Firestore, com legenda, baixar e excluir). **Resumo da expedição** (☰): km, gastos, consumo real, parte de cada um, dia a dia com fotos e botão Compartilhar. **Exportar gastos** em planilha (.csv para Excel/Google Planilhas), nas duas abas. **Novidades** (☰): gastos, avisos e fotos do outro piloto e lembretes da viagem, com contador no botão do menu e aviso na tela quando chega algo novo. **Regras do Firestore novas** (fotos) |
 | 1.13.1 | 25/10/2026 | Gasto de **Combustível** ganhou hodômetro e tanque cheio: com o hodômetro, o abastecimento entra sozinho no Diário de bordo, e os dois ficam ligados (editar ou excluir um atualiza o outro). Localização: tenta o GPS e depois a posição aproximada, e explica o motivo quando não consegue (bloqueada, sem sinal, demora). Mensagem do WhatsApp sem o emoji que aparecia como “�” no PC |
 | 1.13.0 | 25/10/2026 | **Abastecimento na rota:** em cada dia de estrada, onde cada moto deve abastecer pela autonomia (20% de reserva), usando as cidades do caminho e os postos marcados no mapa, com aviso de trecho longo sem parada; aparece no dia, no painel Hoje e no roadbook. **Revisão das motos** (☰): itens a fazer e feitos por moto, com data, km, valor e opção de lançar em Meus gastos. **Modo pilotando** (☰ ou painel Hoje): tela grande com hora, próxima cidade, km até o destino e chegada, próximo abastecimento, tempo agora e botões de localização, Cheguei bem e 192; usa o GPS e mantém a tela acesa. Roadbook não corta mais na tela do celular |
