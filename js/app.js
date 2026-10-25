@@ -1,7 +1,7 @@
 import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATS, CAT_ALIAS, LEGACY_PREP, PTYPES, baseStatus, addDays } from "./data.js";
 import { createStore, newId } from "./store.js";
 import { ensureLeaflet, MapView, pinHTML, distKm } from "./map.js";
-import { wxInfo, wxPlan, wxCached, wxFetch } from "./weather.js";
+import { wxInfo, wxPlan, wxDay, wxTypical, geocode, windFrom } from "./weather.js";
 
 const store = createStore();
 let S = null, ST = null;
@@ -254,7 +254,7 @@ function roteiro() {
         <div class="dk">${d.km ? num(d.km) + " km" : ""}<span class="wx" data-wx="${d.id}" data-mode="chip"></span></div></summary>
       <div class="body">
         ${d.via ? `<div><div class="label">Caminho</div><div style="font-size:.9rem">${esc(d.via)}</div></div>` : ""}
-        <div><div class="label">Tempo</div><div class="wxline" data-wx="${d.id}" data-mode="line"><span class="muted">Carregando…</span></div></div>
+        <div><div class="label">${isRoad(d) && tripEnds(d)[1] ? "Tempo no caminho" : "Tempo"}</div><div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando…</span></div></div>
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
@@ -267,6 +267,7 @@ function roteiro() {
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
     <button class="btn sm " data-act="shiftDates">Mudar data de saída</button><a class="btn sm" href="#roadbook">Roadbook 10×15</a></div>
   <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
+  <div class="card stack" id="wxWeek"><h3>Tempo da viagem</h3><p class="muted">Carregando o tempo…</p></div>
   <div class="stack">${cards}</div>
   <button class="btn block " data-act="addDay">+ Adicionar dia de folga</button>`;
 }
@@ -678,6 +679,7 @@ function ajustes() {
   <form class="card stack" id="setF">
     <h3>Viagem</h3>
     <div class="grid2"><label class="field"><span>Gasolina (R$/L)</span><input id="sGas" inputmode="decimal" value="${S.trip.gasPrice ?? ""}"><small>Usado nas estimativas e como padrão ao abastecer</small></label>
+    <label class="field"><span>Média na estrada (km/h)</span><input id="sSpeed" inputmode="numeric" value="${S.trip.avgSpeed ?? 70}"><small>Contando paradas. Usada para estimar a hora em cada cidade do caminho e o tempo nela.</small></label>
     ${isAdmin() ? `<label class="field"><span>Fim das suas férias</span><input id="sFer" type="date" value="${S.trip.feriasFim || ""}"><small>Só você altera. Para os outros pilotos aparece só o prazo da viagem.</small></label>` : ""}</div>
     <button class="btn primary" style="justify-self:start">Salvar ajustes</button>
   </form>
@@ -955,39 +957,192 @@ function storyForm() {
 }
 
 /* ---------- TEMPO ---------- */
+const tC = v => v == null ? "—" : Math.round(v) + "°";
+const low = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const hhmm = h => { let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return `${pad(H % 24)}h${pad(M)}`; };
+const toH = s => { if (!s) return null; const [h, m] = s.split(":").map(Number); return h + m / 60; };
+const isRoad = d => d.tipo === "estrada" || d.circ === "estrada";
+const tripEnds = d => { const [a, b = ""] = (d.title || "").split("→"); return [a.trim(), b.split("+")[0].trim()]; };
+const cleanCity = s => s.split("/")[0].replace(/\(.*?\)/g, "").trim();
+function knownPlace(name) {
+  const n = low(name); if (!n) return null;
+  if (n.startsWith("lencois")) { const p = S.points?.pousada; return p?.lat != null ? { lat: p.lat, lng: p.lng, name: "Lençóis" } : null; }
+  const hit = Object.values(S.points || {}).find(p => p.lat != null && (low(p.name) === n || low(p.name).startsWith(n + " ") || low(p.name).startsWith(n)));
+  return hit ? { lat: hit.lat, lng: hit.lng, name: hit.name } : null;
+}
 function dayLoc(d) {
   const P = S.points || {};
   const pt = id => P[id] && P[id].lat != null ? { lat: P[id].lat, lng: P[id].lng, name: id === "pousada" ? "Lençóis" : P[id].name } : null;
   const byCirc = { chegada: "pousada", c1: "paiinacio", c2: "capao", c3: "pousada", planob: "lapadoce", folga: "pousada" };
-  if (d.circ !== "estrada") return pt(byCirc[d.circ] || "pousada") || pt("pousada");
-  const dest = (d.title.split("→").pop() || "").split("+")[0].trim().toLowerCase();
-  if (dest.startsWith("lençóis") || dest.startsWith("lencois")) return pt("pousada");
-  const hit = Object.entries(P).find(([, p]) => p.lat != null && p.name && p.name.toLowerCase().startsWith(dest.slice(0, 6)));
-  return hit ? { lat: hit[1].lat, lng: hit[1].lng, name: hit[1].name } : pt("pousada");
+  if (!isRoad(d) || d.circ !== "estrada" && !tripEnds(d)[1]) return pt(byCirc[d.circ] || "pousada") || pt("pousada");
+  const dest = tripEnds(d)[1] || d.title;
+  return knownPlace(cleanCity(dest)) || pt("pousada");
 }
-const tC = v => v == null ? "—" : Math.round(v) + "°";
-function wxHTML(v, plan, mode, loc) {
-  if (v === null) return mode === "line" ? `<span class="muted">Sem dados do tempo agora (precisa de internet).</span>` : "";
-  const w = wxInfo(v.code), rain = v.rain != null ? ` · ${num(v.rain, v.rain < 10 ? 1 : 0)} mm` : "";
-  const short = `${w.icon} ${tC(v.tmax)}/${tC(v.tmin)}`;
-  if (mode === "chip") return plan.kind === "forecast" ? short : "";
-  if (mode === "rb") return plan.kind === "forecast" ? `${short}${rain}` : `—`;
-  const [y, m, dd] = plan.date.split("-");
-  if (plan.kind === "forecast") return `<b>Previsão em ${esc(loc.name)}:</b> ${w.icon} ${w.text} · máx ${tC(v.tmax)} · mín ${tC(v.tmin)}${rain}`;
-  if (plan.kind === "past") return `<b>Como foi em ${esc(loc.name)}:</b> ${w.icon} ${w.text} · ${tC(v.tmax)}/${tC(v.tmin)}${rain}`;
-  return `<span class="muted">A previsão aparece a partir de ${fmtD(plan.availableFrom)}.</span><br><b>Mesmo dia em ${dd}/${m}/${y}, ${esc(loc.name)}:</b> ${w.icon} ${w.text} · ${tC(v.tmax)}/${tC(v.tmin)}${rain}`;
+function viaNames(d) {
+  const [o, de] = tripEnds(d); if (!de) return [];
+  const usable = v => (v || "").split("·").map(cleanCity).filter(x => x && !/^[A-Z]{2}-?\d/.test(x) && !/mesmo|corredor|sentido|contr[aá]rio/i.test(x));
+  let list = usable(d.via);
+  if (list.length < 2) {
+    const twin = days().find(x => x.id !== d.id && x.via && low(cleanCity(tripEnds(x)[0])) === low(cleanCity(de)) && low(cleanCity(tripEnds(x)[1])) === low(cleanCity(o)) && usable(x.via).length >= 2);
+    if (twin) list = usable(twin.via).reverse();
+  }
+  if (!list.length || low(list[0]) !== low(cleanCity(o))) list.unshift(cleanCity(o));
+  if (low(list[list.length - 1]) !== low(cleanCity(de))) list.push(cleanCity(de));
+  return list;
 }
-function fillWx() {
-  const els = document.querySelectorAll("[data-wx]"); if (!els.length) return;
-  const t = todayISO();
-  els.forEach(el => {
-    const d = (S.trip?.days || []).find(x => x.id === el.dataset.wx); if (!d) return;
-    const loc = dayLoc(d); if (!loc) { el.innerHTML = ""; return; }
-    const plan = wxPlan(d.date, t), mode = el.dataset.mode;
-    const c = wxCached(loc.lat, loc.lng, plan);
-    if (c !== undefined) { el.innerHTML = wxHTML(c, plan, mode, loc); return; }
-    wxFetch(loc.lat, loc.lng, plan).then(v => { if (el.isConnected) el.innerHTML = wxHTML(v, plan, mode, loc); });
+const avgSpeed = () => Number(S.trip?.avgSpeed) || 70;
+async function routeStops(d) {
+  const names = viaNames(d); if (names.length < 2) return null;
+  const out = []; let prev = null;
+  for (const n of names) { const p = knownPlace(n) || await geocode(n, prev); if (!p) continue; prev = p; out.push({ name: n, lat: p.lat, lng: p.lng }); }
+  if (out.length < 2) return null;
+  let acc = 0; out.forEach((s, i) => { if (i) acc += distKm(out[i - 1], s); s.line = acc; });
+  const f = d.km && acc ? d.km / acc : 1.25, speed = avgSpeed(), t0 = toH(d.saida) ?? 6;
+  out.forEach(s => { s.km = Math.round(s.line * f); s.eta = t0 + s.km / speed; });
+  return { stops: out, assumed: !d.saida, speed };
+}
+async function dayWx(d) {
+  const loc = dayLoc(d); if (!loc) return null;
+  const plan = wxPlan(d.date, todayISO());
+  const [day, typ] = await Promise.all([wxDay(loc.lat, loc.lng, plan), plan.kind === "ref" ? wxTypical(loc.lat, loc.lng, plan.target) : null]);
+  return { loc, plan, day, typ };
+}
+function wxChips(w) {
+  const v = w?.day; if (!v || w.plan.kind === "ref") return [];
+  const c = [];
+  if (v.tmax >= 34) c.push(["warn", `🔥 ${tC(v.tmax)} à tarde`]);
+  if (v.prob != null && v.prob >= 60) c.push(["info", `🌧️ ${v.prob}% de chuva`]); else if (v.rain >= 5) c.push(["info", `🌧️ ${num(v.rain)} mm`]);
+  if (v.gust >= 45) c.push(["warn", `💨 rajadas de ${Math.round(v.gust)} km/h`]);
+  if (v.uv >= 11) c.push(["warn", `☀️ UV ${Math.round(v.uv)}`]);
+  return c;
+}
+const chipsW = list => list.length ? `<div class="wxchips">${list.map(([k, t]) => `<span class="wxchip ${k}">${t}</span>`).join("")}</div>` : "";
+const rainBits = v => [v.prob != null ? `💧 ${v.prob}%` : null, v.rain != null ? `${num(v.rain, v.rain < 10 ? 1 : 0)} mm` : null, v.gust != null ? `💨 rajadas ${Math.round(v.gust)} km/h` : null].filter(Boolean).join(" · ");
+function wxRender(w, mode, d) {
+  if (!w) return "";
+  const { plan, day: v, typ, loc } = w;
+  if (mode === "chip") return plan.kind === "forecast" && v ? `${wxInfo(v.code).icon} ${tC(v.tmax)}/${tC(v.tmin)}` : "";
+  if (mode === "rb") return plan.kind === "forecast" && v ? `${wxInfo(v.code).icon} ${tC(v.tmax)}/${tC(v.tmin)}${v.prob != null ? ` · ${v.prob}%` : ""}` : "—";
+  // faixa do cartão do dia
+  if (plan.kind === "ref") {
+    if (!typ) return `<span class="muted">Sem dados do tempo agora (precisa de internet).</span>`;
+    return `<button type="button" class="wxs" data-act="wxDay" data-id="${d.id}"><span class="ic">${typ.rainy * 2 >= typ.n ? "🌦️" : "🌤️"}</span>
+      <span class="tx"><b>~${tC(typ.tmax)}/${tC(typ.tmin)}</b><small>Clima típico em ${esc(loc.name)} · choveu em ${typ.rainy} de ${typ.n} anos</small></span><span class="go">Ver ›</span></button>
+      <p class="muted" style="font-size:.78rem;margin-top:6px">A previsão de verdade começa em ${fmtD(plan.availableFrom)}.</p>`;
+  }
+  if (!v) return `<span class="muted">Sem dados do tempo agora (precisa de internet).</span>`;
+  const i = wxInfo(v.code);
+  return `<button type="button" class="wxs" data-act="wxDay" data-id="${d.id}"><span class="ic">${i.icon}</span>
+    <span class="tx"><b>${tC(v.tmax)}/${tC(v.tmin)}</b><small>${plan.kind === "past" ? "Como foi" : i.text} em ${esc(loc.name)} · ${rainBits(v)}</small></span><span class="go">Ver ›</span></button>${chipsW(wxChips(w))}`;
+}
+
+// Semana inteira no topo do Roteiro
+function weekHTML(ds, ws) {
+  const rows = ds.map((d, i) => {
+    const w = ws[i]; if (!w) return null;
+    if (w.plan.kind === "ref") { const t = w.typ; if (!t) return null;
+      return { d, ic: t.rainy * 2 >= t.n ? "🌦️" : "🌤️", mn: t.tmin, mx: t.tmax, r: `${t.rainy}/${t.n}`, rt: `Choveu em ${t.rainy} de ${t.n} anos`, ref: true }; }
+    const v = w.day; if (!v) return null;
+    return { d, ic: wxInfo(v.code).icon, mn: v.tmin, mx: v.tmax, r: v.prob != null ? v.prob + "%" : num(v.rain, 1) + " mm", rt: v.prob != null ? "Chance de chuva" : "Chuva no dia", prob: v.prob };
+  }).filter(Boolean);
+  if (!rows.length) return `<h3>Tempo da viagem</h3><p class="muted">Sem dados do tempo agora (precisa de internet).</p>`;
+  const lo = Math.min(...rows.map(r => r.mn)), hi = Math.max(...rows.map(r => r.mx)), span = Math.max(1, hi - lo);
+  const anyRef = rows.some(r => r.ref), allRef = rows.every(r => r.ref);
+  const passeio = rows.filter(r => !r.ref && r.prob != null && ["c1", "c2", "c3", "planob"].includes(r.d.circ));
+  const wet = passeio.find(r => r.prob >= 70), dry = wet && passeio.filter(r => r !== wet && r.prob <= 30).sort((a, b) => a.prob - b.prob)[0];
+  const cn = c => CIRC_BASE[c] || CIRCUITS[c]?.name || c, W = iso => wd(iso).replace(/^./, x => x.toUpperCase());
+  return `<div class="between"><h3>Tempo da viagem</h3><span class="muted" style="font-size:.75rem">${allRef ? "clima típico · 5 anos" : anyRef ? "previsão + clima típico" : "previsão"}</span></div>
+    <div class="week">${rows.map(r => `<button type="button" class="wk" data-act="wxDay" data-id="${r.d.id}"><b>${wd(r.d.date)} ${parseISO(r.d.date).getDate()}</b><span>${r.ic}</span><span class="mn">${tC(r.mn)}</span>
+      <span class="bar"><i style="left:${((r.mn - lo) / span * 100).toFixed(0)}%;right:${((hi - r.mx) / span * 100).toFixed(0)}%"></i></span><span class="mx">${tC(r.mx)}</span><span class="r" title="${r.rt}">${r.r}</span></button>`).join("")}</div>
+    ${anyRef ? `<p class="muted" style="font-size:.78rem">${allRef ? "Ainda falta muito: cada dia mostra a média do mesmo dia nos últimos 5 anos e em quantos choveu. A previsão entra sozinha 15 dias antes." : "Dias marcados com x/5 ainda são clima típico (em quantos dos últimos 5 anos choveu)."}</p>` : ""}
+    ${wet && dry ? `<div class="wxalert">🌧️ ${W(wet.d.date)} ${fmtD(wet.d.date)} tem ${wet.prob}% de chuva no ${esc(cn(wet.d.circ))}. Dá para trocar com o ${esc(cn(dry.d.circ))} de ${W(dry.d.date)} ${fmtD(dry.d.date)} (${dry.prob}%): edite os dois dias.</div>` : ""}`;
+}
+
+// Folha "Tempo do dia"
+function wxSheet(d) {
+  openSheet(`<div id="wxS"><p class="muted">Carregando o tempo…</p></div><button class="btn" data-close="1">Fechar</button>`, async sh => {
+    const box = sh.querySelector("#wxS");
+    const w = await dayWx(d); if (!box.isConnected) return;
+    if (!w || (!w.day && !w.typ)) { box.innerHTML = `<h3>Tempo</h3><p class="muted">Sem dados do tempo agora (precisa de internet).</p>`; return; }
+    const { plan, day: v, typ, loc } = w, ref = plan.kind === "ref";
+    const head = `<div class="wxhero${ref ? " ref" : ""}"><div class="pl">${wd(d.date)} ${fmtD(d.date)} · ${esc(d.title)}</div>`;
+    let hero;
+    if (ref && typ) hero = `${head}<div class="t sm">Clima típico</div><div class="c">${esc(loc.name)} · média de ${tC(typ.tmax)} / ${tC(typ.tmin)} · a previsão começa em ${fmtD(plan.availableFrom)}</div></div>`;
+    else if (v) { const i = wxInfo(v.code); hero = `${head}<div class="t">${tC(v.tmax)}</div><div class="c">${plan.kind === "past" ? "Como foi · " : ""}${i.icon} ${i.text} em ${esc(loc.name)} · máx ${tC(v.tmax)} mín ${tC(v.tmin)}</div></div>`; }
+    else hero = `${head}<div class="t sm">—</div></div>`;
+    box.innerHTML = hero + `<div id="wxRoute"></div><div id="wxRest"></div>`;
+    const alerts = [];
+    // Estrada: tempo em cada cidade na hora que vocês passam
+    let arrive = null;
+    if (isRoad(d) && tripEnds(d)[1]) {
+      const rb = box.querySelector("#wxRoute"); rb.innerHTML = `<p class="muted" style="font-size:.85rem">Calculando o caminho…</p>`;
+      const R = await routeStops(d);
+      if (R && rb.isConnected) {
+        const vals = await Promise.all(R.stops.map(s => wxDay(s.lat, s.lng, plan)));
+        R.stops.forEach((s, i) => { const hs = vals[i]?.hours || []; s.hr = s.eta < 24 ? hs.find(h => h.h === Math.round(s.eta) % 24) : null; });
+        arrive = R.stops[R.stops.length - 1].eta;
+        rb.innerHTML = `<div class="label" style="margin-top:4px">Na estrada, na hora que vocês passam${ref ? ` · referência: ${fmtD(plan.date)}/${plan.date.slice(0, 4)}` : ""}</div>
+          <div class="wxroute">${R.stops.map((s, i) => { const h = s.hr, last = i === R.stops.length - 1;
+            return `<div class="rs"><span class="h">${hhmm(s.eta)}</span><span class="dot${last ? " end" : ""}"></span><span class="n">${esc(s.name)}<small>${i === 0 ? "saída" : last ? `chegada · ${num(s.km)} km` : `${num(s.km)} km`}</small></span>
+              <span class="w">${h ? `${wxInfo(h.code, !h.day).icon} ${tC(h.t)}<small>${h.prob != null ? h.prob + "%" : h.rain ? num(h.rain, 1) + " mm" : "seco"}</small>` : `<small class="muted">—</small>`}</span></div>`; }).join("")}</div>
+          <p class="muted" style="font-size:.75rem">Horários estimados: ${R.assumed ? "saída às 06h00 (defina a saída no dia) e " : ""}média de ${R.speed} km/h contando paradas. Ajuste a média em ☰ → Ajustes.</p>`;
+        if (!ref) {
+          const hrs = R.stops.map(s => ({ s, h: s.hr })).filter(o => o.h);
+          const hot = hrs.filter(o => o.h.t >= 33); if (hot.length) alerts.push(["warn", `🔥 Calor forte a partir de ${esc(hot[0].s.name)} (${hhmm(hot[0].s.eta)}): até ${tC(Math.max(...hot.map(o => o.h.t)))}. Água e roupa ventilada.`]);
+          const wetS = hrs.find(o => (o.h.prob ?? 0) >= 50 || o.h.rain >= 1); if (wetS) alerts.push(["info", `🌧️ Chuva provável perto de ${esc(wetS.s.name)} por volta das ${hhmm(wetS.s.eta)}. Capa de chuva à mão.`]);
+        }
+      } else if (rb.isConnected) rb.innerHTML = "";
+    }
+    const rest = box.querySelector("#wxRest"); if (!rest || !rest.isConnected) return;
+    if (v) {
+      const ss = toH(v.sunset);
+      if (arrive != null && ss != null) alerts.push(arrive > ss - .5 ? ["warn", `🌙 Chegada prevista às ${hhmm(arrive)}, ${arrive > ss ? "depois" : "perto"} do pôr do sol (${v.sunset.replace(":", "h")}). Sair mais cedo ajuda.`] : ["ok", `🌅 Chegada às ${hhmm(arrive)}, antes do pôr do sol (${v.sunset.replace(":", "h")}).`]);
+      if (!ref) {
+        if (v.gust >= 45) alerts.push(["warn", `💨 Rajadas de até ${Math.round(v.gust)} km/h${v.dir != null ? `, vindo de ${windFrom(v.dir)}` : ""}. Atenção em ponte e trecho aberto.`]);
+        if (v.uv >= 11) alerts.push(["warn", `☀️ UV ${Math.round(v.uv)} (extremo). Protetor no pescoço e no rosto.`]);
+        if (!isRoad(d) && v.hours?.length) {
+          const mx = (a, b) => Math.max(0, ...v.hours.filter(h => h.h >= a && h.h <= b).map(h => h.prob ?? (h.rain >= .5 ? 60 : 0)));
+          const am = mx(6, 11), pm = mx(12, 18);
+          if (pm >= 50 && am < 40) alerts.push(["info", "🌦️ Chuva mais provável à tarde. Faça a trilha longa de manhã."]);
+          else if (am >= 50) alerts.push(["info", "🌧️ Manhã com chance de chuva. Vale ter um plano B por perto."]);
+        }
+      }
+    }
+    if (ref && typ) alerts.push(["info", typ.rainy * 2 >= typ.n ? `🌦️ Nesse dia choveu em ${typ.rainy} de ${typ.n} anos. Capa à mão e trilhas de manhã.` : `☀️ Nesse dia costuma ser seco: choveu em ${typ.rainy} de ${typ.n} anos.`]);
+    let html = alerts.map(([k, t]) => `<div class="wxalert ${k}">${t}</div>`).join("");
+    if (ref && typ) html += `<div class="label">Esse mesmo dia nos últimos ${typ.n} anos</div>
+      <div class="yrs">${typ.years.map(y => `<div class="yr">${y.y}<span class="i">${wxInfo(y.code).icon}</span><b>${tC(y.tmax)}</b><small>${y.rain < .1 ? "seco" : num(y.rain, y.rain < 10 ? 1 : 0) + " mm"}</small></div>`).join("")}</div>`;
+    if (v?.hours?.length) {
+      const focus = arrive != null && arrive < 24 ? Math.round(arrive) : (plan.kind === "forecast" && d.date === todayISO() ? new Date().getHours() : (toH(d.saida) != null ? Math.round(toH(d.saida)) : 8));
+      const hs = v.hours.filter(h => h.h >= 5 && h.h <= 21);
+      html += `<div class="label">Hora a hora · ${esc(loc.name)}${ref ? ` · ${fmtD(plan.date)}/${plan.date.slice(0, 4)}` : ""}</div>
+        <div class="hours">${hs.map(h => `<div class="hr${h.h === focus ? " on" : ""}" ${h.h === focus ? 'data-focus="1"' : ""}>${pad(h.h)}h<span class="i">${wxInfo(h.code, !h.day).icon}</span><b>${tC(h.t)}</b><small>${h.prob != null ? h.prob + "%" : h.rain ? num(h.rain, 1) + "mm" : "–"}</small></div>`).join("")}</div>`;
+    }
+    const tiles = [];
+    if (ref && typ) {
+      tiles.push(["🌡️ Média", `${tC(typ.tmax)} / ${tC(typ.tmin)}`, "máxima / mínima"]);
+      tiles.push(["🌧️ Choveu", `${typ.rainy} de ${typ.n}`, "anos nesse dia"]);
+    }
+    if (v) {
+      if (!ref) tiles.push(["💨 Vento", `${Math.round(v.wind ?? 0)} km/h`, `Rajadas até ${Math.round(v.gust ?? 0)}${v.dir != null ? ` · vem de ${windFrom(v.dir)}` : ""}`]);
+      if (!ref && v.uv != null) tiles.push(["☀️ Índice UV", `${Math.round(v.uv)}`, v.uv >= 11 ? "Extremo" : v.uv >= 8 ? "Muito alto" : v.uv >= 6 ? "Alto" : "Moderado"]);
+      if (v.sunrise && v.sunset) { const len = toH(v.sunset) - toH(v.sunrise); tiles.push(["🌅 Sol", v.sunrise.replace(":", "h"), `Põe às ${v.sunset.replace(":", "h")} · ${hhmm(len)} de luz`]); }
+      if (!ref) tiles.push(["💧 Chuva", v.prob != null ? `${v.prob}%` : `${num(v.rain, 1)} mm`, v.prob != null ? `${num(v.rain, v.rain < 10 ? 1 : 0)} mm no dia` : "no dia"]);
+    }
+    if (tiles.length) html += `<div class="grid2 wxtiles">${tiles.map(([l, val, s]) => `<div class="tile"><div class="label">${l}</div><div class="v">${val}</div><div class="s">${s}</div></div>`).join("")}</div>`;
+    html += `<p class="muted" style="font-size:.72rem">Dados: Open-Meteo. ${ref ? "Clima típico é referência do passado, não previsão." : plan.kind === "forecast" ? "Previsão atualiza a cada 3 horas quando há internet." : ""}</p>`;
+    rest.innerHTML = html;
+    const f = rest.querySelector("[data-focus]"); if (f) f.parentElement.scrollLeft = f.offsetLeft - f.parentElement.offsetLeft - 60;
   });
+}
+
+function fillWx() {
+  document.querySelectorAll("[data-wx]").forEach(el => {
+    const d = days().find(x => x.id === el.dataset.wx); if (!d) return;
+    dayWx(d).then(w => { if (el.isConnected) el.innerHTML = wxRender(w, el.dataset.mode, d); });
+  });
+  const wk = $("#wxWeek");
+  if (wk) { const ds = days(); Promise.all(ds.map(dayWx)).then(ws => { if (wk.isConnected) wk.innerHTML = weekHTML(ds, ws); }); }
 }
 
 /* ---------- ROADBOOK ---------- */
@@ -1017,7 +1172,7 @@ function roadbook() {
     </section>`;
   }).join("");
   return `<div class="rb-toolbar stack">${backLink}<div class="between"><h2>Roadbook</h2><button class="btn primary" data-act="printRb">Imprimir / salvar PDF</button></div>
-    <p class="note">Um cartão de 10 × 15 cm por dia. Ao imprimir, escolha <b>Salvar como PDF</b> para guardar no celular, ou imprima direto. Se a impressora pedir tamanho, use 10 × 15 cm (ou A6, com margens mínimas). Km em linha reta a partir da pousada; tempo só aparece quando a previsão estiver disponível.</p></div>
+    <p class="note">Um cartão de 10 × 15 cm por dia. Ao imprimir, escolha <b>Salvar como PDF</b> para guardar no celular, ou imprima direto. Se a impressora pedir tamanho, use 10 × 15 cm (ou A6, com margens mínimas). Km em linha reta a partir da pousada; o tempo (máx/mín e chance de chuva) aparece quando a previsão estiver disponível, 15 dias antes.</p></div>
     <div class="rb-grid" id="roadbookPages">${cards}</div>`;
 }
 
@@ -1031,6 +1186,7 @@ $("#view").addEventListener("click", e => {
   if (ADMIN_ACTS.has(act) && !isAdmin()) { toast("Só o admin altera isso"); return; }
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
+  else if (act === "wxDay") { const d = S.trip.days.find(x => x.id === id); if (d) wxSheet(d); }
   else if (act === "addDay") { const ds = days(); const last = ds[ds.length - 1];
     const nd = { id: "d" + newId(), date: last ? addDays(last.date, 1) : S.trip.startDate, tipo: "folga", circ: "folga", title: "Dia de folga", km: null, saida: "", via: "", notes: "" };
     store.merge("trip", { days: [...S.trip.days, nd] }); openDays.add(nd.id); toast("Dia adicionado"); }
@@ -1082,6 +1238,7 @@ $("#view").addEventListener("change", e => {
 $("#view").addEventListener("submit", e => {
   if (e.target.id !== "setF") return; e.preventDefault();
   const patch = { gasPrice: parseNum($("#sGas").value) ?? S.trip.gasPrice };
+  const sp = parseNum($("#sSpeed")?.value); if (sp && sp >= 20 && sp <= 150) patch.avgSpeed = Math.round(sp);
   if (isAdmin() && $("#sFer")) patch.feriasFim = $("#sFer").value || null;
   store.merge("trip", patch); toast("Ajustes salvos");
 });

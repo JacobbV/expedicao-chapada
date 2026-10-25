@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.9.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.10.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -32,7 +32,7 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto (usados na autonomia e no combustível), redes e contatos de cada um e, para o admin, **+ Adicionar piloto** |
-| **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, fim das férias, backup, sincronização, sair da conta e versão do app |
+| **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, média na estrada (para o tempo no caminho), fim das férias, backup, sincronização, sair da conta e versão do app |
 | **Menu ☰ → Aparência** | Atalho para trocar entre **Automático** (segue o celular), **☀ Dia** e **☾ Noite**. A escolha fica salva em cada aparelho |
 | **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, **redes e contatos de cada piloto** (só aparecem os preenchidos) e créditos. Todos veem; os textos só o admin edita, e cada piloto edita os próprios contatos |
 
@@ -102,15 +102,26 @@ O botão **Imprimir / salvar PDF** abre a impressão do celular ou do computador
 
 ## Tempo
 
-Cada dia do **Roteiro** mostra o tempo do lugar daquele dia (cidade de destino nos dias de estrada; Lençóis, Pai Inácio, Capão ou Lapa Doce nos passeios), usando o serviço gratuito **Open-Meteo**:
+Tudo vem do **Open-Meteo**, gratuito e sem cadastro. A consulta sai do próprio celular.
+
+**No Roteiro**
+- **Tempo da viagem** (no topo): os dias em barras de mínima e máxima, com a chance de chuva. Se um dia de passeio tem 70% ou mais de chuva e outro tem 30% ou menos, o app sugere trocar os circuitos.
+- **No cartão de cada dia:** faixa com máxima/mínima, chance de chuva, mm e rajadas, e avisos rápidos (calor de 34° ou mais, chuva de 60% ou mais, rajadas de 45 km/h ou mais, UV extremo). Toque para abrir o **Tempo do dia**.
+
+**Tempo do dia** (ao tocar)
+- **Na estrada, na hora que vocês passam:** com a hora de saída e a média em Ajustes (70 km/h contando paradas, por padrão), o app estima a que horas vocês passam em cada cidade do **Caminho** e mostra o tempo naquela hora e lugar. As cidades são achadas pela busca de nomes do Open-Meteo e ficam guardadas. Nos dias de volta escritos como “mesmo corredor da ida”, o app usa o caminho da ida ao contrário.
+- **Avisos:** calor na rota, chuva perto de alguma cidade, chegada perto ou depois do pôr do sol, rajadas, UV e, nos passeios, chuva mais provável à tarde.
+- **Hora a hora** no lugar do dia, **vento** (com de onde vem), **índice UV**, **nascer e pôr do sol** e **chuva**.
+
+**Quando**
 
 | Quando | O que aparece |
 |---|---|
-| Até 15 dias antes | **Previsão**: céu, máxima, mínima e chuva em mm (também no resumo do dia e no roadbook) |
-| Mais de 15 dias antes | Quando a previsão começa e **como estava o tempo no mesmo dia do ano anterior**, como referência |
-| Dia que já passou | Como foi o tempo naquele dia |
+| Até 15 dias antes | **Previsão** completa, também no resumo do dia e no roadbook |
+| Mais de 15 dias antes | **Clima típico:** o mesmo dia nos últimos 5 anos (média de máxima e mínima, em quantos choveu, ano a ano) e o hora a hora do ano anterior como referência. A previsão entra sozinha 15 dias antes |
+| Dia que já passou | Como foi o tempo |
 
-O resultado fica guardado no celular: a previsão é renovada a cada 3 horas com internet, e sem sinal aparece a última que foi baixada.
+O resultado fica guardado no celular: a previsão é renovada a cada 3 horas com internet, e sem sinal aparece a última baixada. Lugar de cada dia: destino nos dias de estrada; Lençóis, Pai Inácio, Capão ou Lapa Doce nos passeios. Se um pin mudar no mapa, o tempo acompanha.
 
 ## Gastos
 
@@ -231,7 +242,9 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.9.0** | 24/10/2026 | **Menu novo** (perfil no topo, dias para a saída, sincronização, grupos com ícones e Sair da conta); **Roadbook 10 × 15 cm** com um cartão por dia para imprimir ou salvar em PDF; **tempo por dia** no Roteiro (previsão até 15 dias; antes disso, o mesmo dia do ano anterior como referência) |
+| **1.10.0** | 25/10/2026 | **Tempo mais completo:** semana em barras no topo do Roteiro com sugestão de troca de circuito em dia de chuva; faixa e avisos no cartão do dia; folha **Tempo do dia** com o tempo em cada cidade do caminho na hora que vocês passam, avisos (calor, chuva, pôr do sol, rajadas, UV), hora a hora, vento, UV, sol e chuva; antes da previsão, **clima típico dos últimos 5 anos**; média na estrada em Ajustes |
+| 1.9.1 | 24/10/2026 | Correção no menu: os textos ao lado de cada item (confirmadas, abertas, versão) apareciam cortados |
+| 1.9.0 | 24/10/2026 | **Menu novo** (perfil no topo, dias para a saída, sincronização, grupos com ícones e Sair da conta); **Roadbook 10 × 15 cm** com um cartão por dia para imprimir ou salvar em PDF; **tempo por dia** no Roteiro (previsão até 15 dias; antes disso, o mesmo dia do ano anterior como referência) |
 | 1.8.0 | 24/10/2026 | **Edição em conjunto**: o Kaique passa a editar roteiro, mapa, hospedagem, pendências, gasolina e os textos Quem somos, Nossa história e Objetivos; continuam só do admin as férias, “Sobre o app” e adicionar/remover pilotos. O aviso de férias aparece só para o admin; os outros veem o prazo da viagem e o motivo. Regras do Firestore atualizadas |
 | 1.7.1 | 24/10/2026 | Opção **+ Nova categoria…** separada do “Outros”, com o campo aparecendo só quando é escolhida; corrigidos campos que apareciam sem precisar (litros fora do combustível) |
 | 1.7.0 | 24/10/2026 | **Categorias iguais nas duas abas** de gastos, com Equipamentos e Equipamentos de proteção separados e **Medicamentos** novo; em **Outros** dá para criar uma categoria, que fica salva para os próximos gastos; nomes antigos de categoria são convertidos sozinhos |
