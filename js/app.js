@@ -1055,16 +1055,39 @@ function getPos() {
   return one(true).then(r => r.pos || r.err === 1 ? r : one(false));
 }
 const POS_ERR = { 0: "Este aparelho não informa localização.", 1: "Localização bloqueada para o app. Libere em Configurações do celular → navegador (ou no cadeado da barra de endereço) e tente de novo.", 2: "Não deu para achar a posição agora (sem GPS ou sinal).", 3: "O GPS demorou demais para responder." };
-async function sendAlert(kind) {
+// Avisar o grupo: abre uma folha, pega a localização e só então mostra os botões de envio.
+// O toque no botão abre o WhatsApp direto (whatsapp://), com a lista de conversas para escolher.
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function sendAlert(kind) {
   const m = me(); if (!m) return pickMe();
-  toast("Pegando sua localização…");
-  const g = await getPos(), pos = g.pos || null, now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`, place = kind === "ok" ? todayDest() : "";
-  const link = pos ? `\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}` : "";
-  const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `▶ Localização de ${rname(m)}, às ${hm}:${link || "\n(sem localização agora)"}\n— Expedição Chapada`;
-  const list = checkins(), keep = list.slice(49).reduce((o, c) => (o[c.id] = null, o), {});
-  store.merge("meta/checkins", { ...keep, [newId()]: { rider: m, kind, at: Date.now(), lat: pos?.lat ?? null, lng: pos?.lng ?? null, place } });
-  if (!pos) { toast(POS_ERR[g.err] || POS_ERR[2]); await new Promise(r => setTimeout(r, 3500)); }
-  location.href = waHref("", text);
+  const place = kind === "ok" ? todayDest() : "";
+  openSheet(`<h3>${kind === "ok" ? "✅ Cheguei bem" : "📍 Enviar minha localização"}</h3><div id="alBox" class="stack"><p class="muted">Pegando sua localização…</p></div>
+    <button class="btn" data-close="1">Fechar</button>`, async sh => {
+    const box = sh.querySelector("#alBox");
+    const run = async () => {
+      box.innerHTML = `<p class="muted">Pegando sua localização…</p>`;
+      const g = await getPos(); if (!box.isConnected) return;
+      const pos = g.pos || null, now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
+      const link = pos ? `\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}` : "";
+      const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `▶ Localização de ${rname(m)}, às ${hm}:${link || "\n(sem localização agora)"}\n— Expedição Chapada`;
+      const wa = isMobile ? `whatsapp://send?text=${encodeURIComponent(text)}` : waHref("", text);
+      box.innerHTML = `${pos ? "" : `<div class="warnbox">${esc(POS_ERR[g.err] || POS_ERR[2])}</div>`}
+        <div class="msgprev">${esc(text).replace(/\n/g, "<br>")}</div>
+        <a class="btn primary block" id="alWa" href="${wa}" ${isMobile ? "" : 'target="_blank" rel="noopener"'}>Enviar pelo WhatsApp</a>
+        <div class="grid2">${navigator.share ? `<button type="button" class="btn" id="alSh">Outros apps…</button>` : ""}<button type="button" class="btn" id="alCp">Copiar texto</button></div>
+        ${pos ? "" : `<button type="button" class="btn" id="alRe">Tentar pegar a localização de novo</button>`}
+        <p class="muted" style="font-size:.78rem">Ao enviar, o aviso também fica registrado no app para o outro piloto.</p>`;
+      let logged = false;
+      const log = () => { if (logged) return; logged = true;
+        const keep = checkins().slice(49).reduce((o, c) => (o[c.id] = null, o), {});
+        store.merge("meta/checkins", { ...keep, [newId()]: { rider: m, kind, at: Date.now(), lat: pos?.lat ?? null, lng: pos?.lng ?? null, place } }); };
+      box.querySelector("#alWa").addEventListener("click", log);
+      box.querySelector("#alSh")?.addEventListener("click", () => { log(); navigator.share({ text }).catch(() => {}); });
+      box.querySelector("#alCp").addEventListener("click", () => { log(); navigator.clipboard?.writeText(text).then(() => toast("Texto copiado: cole na conversa"), () => toast("Não deu para copiar")); });
+      box.querySelector("#alRe")?.addEventListener("click", run);
+    };
+    run();
+  });
 }
 function seguranca() {
   const list = checkins().slice(0, 6);

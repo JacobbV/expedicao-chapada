@@ -94,15 +94,15 @@ export const POINTS_SEED = [
 
 export function seedDays(start = "2027-01-12") {
   const base = [
-    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 548, saida: "04:00",
-      via: "Catolé do Rocha · Pombal · Cajazeiras · Salgueiro · Cabrobó · Petrolina", notes: "Corredor BR-407 como referência; validar traçado e postos. Chegar de dia." },
-    { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 487, saida: "04:00",
-      via: "Petrolina/Juazeiro · Senhor do Bonfim · Capim Grosso · Mairi · Baixa Grande · Macajuba · Ruy Barbosa · BR-242 · Lençóis", notes: "Check-in, guardar as motos, centro histórico à noite." },
+    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 563, saida: "04:00",
+      via: "Catolé do Rocha · Pombal · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina", notes: "PB-325 → BR-230 → BR-116 (pelo Ceará) → BR-232 → BR-428. Chegar de dia." },
+    { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 528, saida: "04:00",
+      via: "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis", notes: "BR-407 → BA-131 → BR-324 → BA-144 (Morro do Chapéu) → BA-046/BA-142 → BR-242. Check-in, guardar as motos, centro histórico à noite." },
     { tipo: "passeio", circ: "c1", title: "Circuito 1 · Mosquito, Diabo, Pai Inácio", km: 125, saida: "07:00", via: "", notes: "" },
     { tipo: "passeio", circ: "c2", title: "Circuito 2 · Capão, Fumaça, Riachinho", km: 180, saida: "06:30", via: "", notes: "" },
     { tipo: "passeio", circ: "c3", title: "Circuito 3 · Marimbus e Roncador", km: 50, saida: "", via: "", notes: "" },
-    { tipo: "estrada", circ: "estrada", title: "Lençóis → Petrolina", km: 487, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Horário e pernoite a definir." },
-    { tipo: "estrada", circ: "estrada", title: "Petrolina → Catolé do Rocha", km: 548, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Chegada em casa." },
+    { tipo: "estrada", circ: "estrada", title: "Lençóis → Petrolina", km: 528, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Horário e pernoite a definir." },
+    { tipo: "estrada", circ: "estrada", title: "Petrolina → Catolé do Rocha", km: 563, saida: "", via: "Mesmo corredor da ida, sentido contrário", notes: "Chegada em casa." },
   ];
   return base.map((d, i) => ({ id: "d" + (i + 1), date: addDays(start, i), ...d }));
 }
