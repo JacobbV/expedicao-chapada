@@ -262,44 +262,25 @@ function hojeCard(ds, t) {
   if (i >= 0) tag = "Hoje";
   else { i = ds.findIndex(d => d.date > t); tag = t < ds[0].date ? `Prévia do dia 1` : "Próximo dia"; }
   const d = ds[i], c = CIRCUITS[d.circ] || CIRCUITS.estrada, nx = ds[i + 1];
-  const rows = [];
-  // Horário
-  const t0 = toH(d.saida);
-  if (d.saida) rows.push(["🕓", `Saída às <b>${d.saida.replace(":", "h")}</b>${isRoad(d) && d.km && tripEnds(d)[1] ? ` · chegada por volta de <b>${hhmm(t0 + d.km / avgSpeed())}</b> em ${esc(cleanCity(tripEnds(d)[1]))}` : ""}`]);
-  else if (isRoad(d)) rows.push(["🕓", `Hora de saída ainda não definida · <a href="#roteiro" data-act="editDay" data-id="${d.id}">definir</a>`]);
-  // Combustível do dia
-  if (d.km) {
-    const parts = riderIds().map(id => { const r = S.riders[id], aut = (Number(r.tanque) || 0) * (consumoDe(id) || 0);
-      if (!aut) return `${esc(rname(id))}: <a href="#pilotos">informar tanque e consumo</a>`;
-      const n = Math.ceil(d.km / (aut * .85)) - 1;
-      return `${esc(rname(id))}: ${n <= 0 ? "um tanque dá" : `<b>${n} ${n === 1 ? "parada" : "paradas"}</b> para abastecer`} <span class="muted">(autonomia ~${num(aut)} km)</span>`; });
-    rows.push(["⛽", isRoad(d) && tripEnds(d)[1] ? `<div data-fuel="${d.id}" data-mode="short">${num(d.km)} km · ${parts.join(" · ")}</div>` : `${num(d.km)} km · ${parts.join(" · ")}`]);
-  }
-  // Pernoite
-  const ln = lodgingFor(i, ds); if (ln && ln !== "—") rows.push(["🛏️", `Pernoite: <a href="#hospedagem">${esc(ln)}</a>`]);
-  // Revisão pendente (antes da viagem)
-  if (tag !== "Hoje" && m0()) { const n = revOf(m0()).filter(x => !x.done).length; if (n) rows.push(["🔧", `Revisão da moto: ${n} ${n === 1 ? "item" : "itens"} a fazer · <a href="#revisao" data-vr="${m0()}">ver</a>`]); }
-  // Avisos de hoje (localização / cheguei bem)
-  if (tag === "Hoje") { const ck = checkins().filter(c => c.at && new Date(c.at).toDateString() === new Date().toDateString()).slice(0, 2);
-    ck.forEach(c => rows.push([c.kind === "ok" ? "✅" : "📍", `<b>${esc(rname(c.rider))}</b> ${c.kind === "ok" ? `chegou bem${c.place ? " em " + esc(c.place) : ""}` : "mandou a localização"} às ${pad(new Date(c.at).getHours())}h${pad(new Date(c.at).getMinutes())}${c.lat != null ? ` · <a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" rel="noopener">mapa</a>` : ""}`])); }
-  // Checklist que falta (meu)
-  const m = me() || riderIds()[0];
-  if (m) {
-    const falta = []; for (const [, items] of CHECKLIST) for (const it of items) { const st = itemStatus(m, it[0]); if (st === "prov" || st === "rev" || st === "avaliar") falta.push(it[1]); }
-    if (falta.length) rows.push(["📋", `Falta no seu checklist: ${falta.slice(0, 3).map(esc).join(", ")}${falta.length > 3 ? ` e mais ${falta.length - 3}` : ""} · <a href="#checklist" data-vr="${m}">ver</a>`]);
-    else rows.push(["📋", "Seu checklist está completo."]);
-  }
+  const ln = lodgingFor(i, ds), arr = arrivalOf(d);
+  const facts = [d.saida ? `🕓 <b>${d.saida.replace(":", "h")}</b>${arr ? ` → <b>~${arr}</b>` : ""}` : isRoad(d) ? `🕓 <a href="#roteiro" data-act="editDay" data-id="${d.id}">definir saída</a>` : "",
+    d.km ? `🛣️ <b>${num(d.km)} km</b>` : "", ln && ln !== "—" ? `🛏️ <a href="#hospedagem">${esc(ln)}</a>` : ""].filter(Boolean);
+  const ck = tag === "Hoje" ? checkins().filter(x => x.at && new Date(x.at).toDateString() === new Date().toDateString()).slice(0, 2) : [];
   return `<div class="card hoje" style="border-left:6px solid ${c.color}">
     <div class="between"><div class="label">${tag} · ${wd(d.date)} ${fmtD(d.date)}</div><span class="muted" style="font-size:.78rem">Dia ${i + 1} de ${ds.length}</span></div>
     <div class="ht">${esc(d.title)}</div>
-    <div class="muted" style="font-size:.85rem">${esc(c.short || c.name)}</div>
-    <div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando o tempo…</span></div>
-    <ul class="hlist">${rows.map(([ic, h]) => `<li><span>${ic}</span><div>${h}</div></li>`).join("")}</ul>
-    ${tag === "Hoje" ? `<a class="btn primary block" href="#pilotando">🏍️ Modo pilotando</a><div class="grid2"><button class="btn" data-act="sendLoc">📍 Minha localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
-    <div class="row"><button class="btn sm" data-act="wxDay" data-id="${d.id}">Tempo do dia</button><button class="btn sm" data-act="mapCirc" data-v="${d.circ}">Ver no mapa</button><a class="btn sm" href="#roadbook">Roadbook</a></div>
-    ${nx ? `<p class="muted" style="font-size:.8rem">Depois: ${wd(nx.date)} ${fmtD(nx.date)} · ${esc(nx.title)}${nx.saida ? " · saída " + nx.saida.replace(":", "h") : ""}</p>` : ""}
+    <div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando o tempo…</span></div>
+    <div class="hrow">${facts.map(f => `<span>${f}</span>`).join("")}</div>
+    ${isRoad(d) && tripEnds(d)[1] ? `<div class="fuel1"><span>⛽</span><div data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></div>` : ""}
+    ${ck.map(x => `<div class="fuel1"><span>${x.kind === "ok" ? "✅" : "📍"}</span><div><b>${esc(rname(x.rider))}</b> ${x.kind === "ok" ? `chegou bem${x.place ? " em " + esc(x.place) : ""}` : "mandou a localização"} às ${pad(new Date(x.at).getHours())}h${pad(new Date(x.at).getMinutes())}${x.lat != null ? ` · <a href="https://maps.google.com/?q=${x.lat},${x.lng}" target="_blank" rel="noopener">mapa</a>` : ""}</div></div>`).join("")}
+    ${tag === "Hoje" ? `<a class="btn primary block" href="#pilotando">🏍️ Modo pilotando</a><div class="grid2"><button class="btn" data-act="sendLoc">📍 Localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button></div>` : ""}
+    <div class="bar4">${canNav(d) ? `<button type="button" data-act="navPick" data-id="${d.id}"><span>🧭</span>Navegar</button>` : ""}<button type="button" data-act="mapCirc" data-v="${d.circ}"><span>🗺️</span>Mapa</button><button type="button" data-act="wxDay" data-id="${d.id}"><span>🌦️</span>Tempo</button><a href="#roadbook"><span>📄</span>Roadbook</a></div>
+    ${nx ? `<p class="muted" style="font-size:.8rem">Depois: ${wd(nx.date)} ${fmtD(nx.date)} · ${esc(nx.title)}</p>` : ""}
   </div>`;
 }
+// Hora de chegada estimada (dias de estrada com saída e km)
+const arrivalOf = d => d.saida && d.km && isRoad(d) && tripEnds(d)[1] ? hhmm(toH(d.saida) + d.km / avgSpeed()) : "";
+const canNav = d => (isRoad(d) && tripEnds(d)[1]) || allPoints().some(p => p.circ === d.circ && p.lat != null && p.id !== "pousada");
 
 /* ---------- ROTEIRO ---------- */
 function roteiro() {
@@ -312,22 +293,20 @@ function roteiro() {
       <div class="label" style="color:${c.color}">${esc(det.name)}</div>
       <div class="seq">${det.seq.map(s => `<span>${esc(s)}</span>`).join("")}</div>
       <div class="metrics"><div><div class="label">Moto</div><div class="v">${esc(det.moto)}</div></div><div><div class="label">Caminhada</div><div class="v">${esc(det.caminhada)}</div></div><div><div class="label">Acesso</div><div class="v">${esc(det.acesso)}</div></div></div>
-      ${det.trechos ? `<div class="tablebox"><table><tbody>${det.trechos.map(([a, b]) => `<tr><td>${esc(a)}</td><td class="r num">${esc(b)}</td></tr>`).join("")}</tbody></table></div>` : ""}
-      <p class="note">${esc(det.nota)}</p>` : "";
+      ${det.trechos || det.nota ? `<details class="more"><summary>Trechos e dicas do circuito</summary>${det.trechos ? `<div class="tablebox"><table><tbody>${det.trechos.map(([a, b]) => `<tr><td>${esc(a)}</td><td class="r num">${esc(b)}</td></tr>`).join("")}</tbody></table></div>` : ""}${det.nota ? `<p class="note">${esc(det.nota)}</p>` : ""}${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}</details>` : ""}` : "";
+    const arr = arrivalOf(d), nPh = photos().filter(p => p.day === d.id).length;
     return `<details class="day${d.date === t ? " today" : ""}" style="--c:${c.color}" data-day="${d.id}" ${openDays.has(d.id) ? "open" : ""}>
       <summary><div class="dnum">${parseISO(d.date).getDate()}<small>${wd(d.date)}</small></div>
-        <div style="min-width:0"><div class="dt">${esc(d.title)}</div><div class="dm">${esc(c.short || c.name)}${d.saida ? " · saída " + d.saida.replace(":", "h") : ""}</div></div>
+        <div style="min-width:0"><div class="dt">${esc(d.title)}</div><div class="dm">${esc(c.short || c.name)}${d.saida ? " · saída " + d.saida.replace(":", "h") : ""}${arr ? " · chegada ~" + arr : ""}</div></div>
         <div class="dk">${d.km ? num(d.km) + " km" : ""}<span class="wx" data-wx="${d.id}" data-mode="chip"></span></div></summary>
       <div class="body">
-        ${d.via ? `<div><div class="label">Caminho</div><div style="font-size:.9rem">${esc(d.via)}</div></div>` : ""}
-        <div><div class="label">${isRoad(d) && tripEnds(d)[1] ? "Tempo no caminho" : "Tempo"}</div><div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando…</span></div></div>
-        ${isRoad(d) && tripEnds(d)[1] ? `<div><div class="label">Abastecimento</div><div data-fuel="${d.id}"><span class="muted" style="font-size:.85rem">Calculando…</span></div></div>` : ""}
-        ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
+        <dl class="kvl">
+          ${d.via ? `<dt>Caminho</dt><dd>${esc(d.via)}</dd>` : ""}
+          <dt>Tempo</dt><dd><div data-wx="${d.id}" data-mode="mini"><span class="muted">Carregando…</span></div></dd>
+          ${isRoad(d) && tripEnds(d)[1] ? `<dt>Abastecer</dt><dd class="fuel1"><div data-fuel="${d.id}" data-mode="line"><span class="muted">Calculando…</span></div></dd>` : ""}
+        </dl>
         ${circBlock}
-        ${dayPoints(d)}
-        ${isRoad(d) && tripEnds(d)[1] || allPoints().some(p => p.circ === d.circ && p.lat != null && p.id !== "pousada") ? `<div><div class="label">Navegar</div>${navBtns(d)}</div>` : ""}
-        ${dayPhotos(d)}
-        <div class="row"><button class="btn sm " data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm " data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
+        <div class="bar4">${canNav(d) ? `<button type="button" data-act="navPick" data-id="${d.id}"><span>🧭</span>Navegar</button>` : ""}<button type="button" data-act="mapCirc" data-v="${d.circ}"><span>🗺️</span>Mapa</button><button type="button" data-act="dayPhotos" data-id="${d.id}"><span>📷</span>Fotos${nPh ? ` · ${nPh}` : ""}</button><button type="button" data-act="editDay" data-id="${d.id}"><span>✏️</span>Editar</button></div>
       </div></details>`;
   }).join("");
   const first = ds[0], last = ds[ds.length - 1];
@@ -335,7 +314,6 @@ function roteiro() {
   <div class="between"><h2>Roteiro</h2><span class="muted num">${num(totalKm())} km</span></div>
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
     <button class="btn sm " data-act="shiftDates">Mudar data de saída</button><a class="btn sm" href="#roadbook">Roadbook 10×15</a></div>
-  <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
   <div class="card stack" id="wxWeek"><h3>Tempo da viagem</h3><p class="muted">Carregando o tempo…</p></div>
   <div class="stack">${cards}</div>
   <button class="btn block " data-act="addDay">+ Adicionar dia de folga</button>`;
@@ -352,8 +330,10 @@ function dayForm(d) {
       <label class="field"><span>Caminho / cidades</span><input id="dVia" value="${esc(d.via || "")}"><small>Separe com “ · ”. Usado no tempo, no abastecimento e no Modo pilotando.</small></label>
       <label class="field"><span>Rota no Google Maps (link)</span><input id="dGm" inputmode="url" value="${esc(d.gmaps || "")}" placeholder="https://maps.app.goo.gl/…"><small>No Google Maps, monte a rota do jeito que vocês vão, toque em Compartilhar e cole o link aqui. O botão Google Maps passa a abrir exatamente essa rota.</small></label>
       <label class="field"><span>Observações</span><textarea id="dNotes">${esc(d.notes || "")}</textarea></label>
+      <button type="button" class="btn" id="dIns">+ Inserir um dia depois deste</button>
       <div class="actions"><button type="button" class="btn danger" id="dDel">Remover</button><button class="btn primary" type="submit">Salvar</button></div>
     </form>`, sh => {
+    sh.querySelector("#dIns").addEventListener("click", () => { closeSheet(); insertDayAfter(d.id); });
     sh.querySelector("#dayF").addEventListener("submit", e => {
       e.preventDefault();
       const nd = { ...d, date: $("#dDate").value || d.date, saida: $("#dSaida").value, title: $("#dTitle").value.trim() || d.title, circ: $("#dCirc").value,
@@ -367,6 +347,30 @@ function dayForm(d) {
       store.merge("trip", { days: S.trip.days.filter(x => x.id !== d.id).map(x => x.date > d.date ? { ...x, date: addDays(x.date, -1) } : x) });
       closeSheet(); toast("Dia removido · datas seguintes recuaram 1 dia");
     });
+  });
+}
+function insertDayAfter(id) {
+  const d = S.trip.days.find(x => x.id === id); if (!d) return;
+  const nd = { id: "d" + newId(), date: addDays(d.date, 1), tipo: "folga", circ: "folga", title: "Dia extra", km: null, saida: "", via: "", notes: "" };
+  store.merge("trip", { days: [...S.trip.days.map(x => x.date > d.date ? { ...x, date: addDays(x.date, 1) } : x), nd] });
+  openDays.add(nd.id); toast("Dia inserido · datas seguintes avançaram 1 dia");
+}
+function navPick(id, here) {
+  const d = days().find(x => x.id === id); if (!d) return;
+  openSheet(`<h3>Navegar · ${wd(d.date)} ${fmtD(d.date)}</h3>
+    <button class="btn primary block" id="nvG">🧭 Google Maps${d.gmaps ? " · rota de vocês" : ""}</button>
+    <button class="btn block" id="nvW">Waze · só o destino</button>
+    <p class="muted" style="font-size:.8rem">${d.gmaps ? "Abre a rota salva no dia (Editar → Rota no Google Maps)." : "Monta a rota pelas cidades do caminho. Para uma rota exata, cole o link do Google Maps em Editar."} O Google Maps e o Waze aparecem no CarPlay.</p>
+    <button class="btn" data-close="1">Fechar</button>`, sh => {
+    sh.querySelector("#nvG").addEventListener("click", () => { closeSheet(); navOpen(d, "google", here); });
+    sh.querySelector("#nvW").addEventListener("click", () => { closeSheet(); navOpen(d, "waze", here); });
+  });
+}
+function dayPhotosSheet(id) {
+  const d = days().find(x => x.id === id); if (!d) return;
+  openSheet(`<h3>Fotos · ${wd(d.date)} ${fmtD(d.date)}</h3><div id="phBox">${dayPhotos(d)}</div><button class="btn" data-close="1">Fechar</button>`, sh => {
+    sh.addEventListener("change", e => { const t = e.target; if (t.dataset.photoDay && t.files.length) { addPhotos(t.dataset.photoDay, t.files).then(() => { const bx = sh.querySelector("#phBox"); if (bx) bx.innerHTML = dayPhotos(d); }); t.value = ""; } });
+    sh.addEventListener("click", e => { const b = e.target.closest("[data-act=openPhoto]"); if (b) photoSheet(b.dataset.id); });
   });
 }
 function shiftForm() {
@@ -1258,6 +1262,7 @@ async function fuelPlanDay(d) {
 function fuelHTML(P, mode) {
   if (!P) return mode === "rb" ? "—" : "";
   const nm = s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`;
+  if (mode === "line") return P.riders.map(r => `<div><b>${esc(rname(r.id))}</b> ${r.missing ? `<a href="#pilotos">informar tanque e consumo</a>` : r.stops.length ? r.stops.map(s => `${s.posto ? "⛽ " : ""}${esc(s.name)}`).join(" · ") : "um tanque dá"}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada</span>` : ""}</div>`).join("");
   if (mode === "rb") return P.riders.map(r => `${esc(rname(r.id))}: ${r.missing ? "—" : r.stops.length ? r.stops.map(s => `${nm(s)} (${num(s.km)})`).join(", ") : "um tanque dá"}`).join(" · ");
   const line = r => r.missing ? `<b>${esc(rname(r.id))}</b>: <a href="#pilotos">informar tanque e consumo</a>`
     : `<b>${esc(rname(r.id))}</b>${mode === "short" ? "" : ` <span class="muted">(~${num(r.aut)} km/tanque)</span>`}: ${r.stops.length ? "abastecer em " + r.stops.map(s => `<b>${nm(s)}</b> <span class="muted">${num(s.km)} km</span>`).join(" → ") : `um tanque dá até ${esc(P.dest)}`}${r.warn ? ` <span class="wxchip">⚠️ ${num(r.warn.gap)} km sem parada${r.warn.to ? " até " + esc(r.warn.to) : ""}</span>` : ""}`;
@@ -1645,6 +1650,13 @@ function wxRender(w, mode, d) {
   const { plan, day: v, typ, loc } = w;
   if (mode === "chip") return plan.kind === "forecast" && v ? `${wxInfo(v.code).icon} ${tC(v.tmax)}/${tC(v.tmin)}` : "";
   if (mode === "rb") return plan.kind === "forecast" && v ? `${wxInfo(v.code).icon} ${tC(v.tmax)}/${tC(v.tmin)}${v.prob != null ? ` · ${v.prob}%` : ""}` : "—";
+  if (mode === "mini") {
+    const go = `<span class="go">Ver ›</span>`;
+    if (plan.kind === "ref") return typ ? `<button type="button" class="wxs mini" data-act="wxDay" data-id="${d.id}"><span class="ic">${typ.rainy * 2 >= typ.n ? "🌦️" : "🌤️"}</span><span class="tx"><b>~${tC(typ.tmax)}/${tC(typ.tmin)}</b><small>clima típico · choveu ${typ.rainy} de ${typ.n} anos</small></span>${go}</button>` : `<span class="muted">Sem dados do tempo agora.</span>`;
+    if (!v) return `<span class="muted">Sem dados do tempo agora.</span>`;
+    const i = wxInfo(v.code), warn = wxChips(w)[0];
+    return `<button type="button" class="wxs mini" data-act="wxDay" data-id="${d.id}"><span class="ic">${i.icon}</span><span class="tx"><b>${tC(v.tmax)}/${tC(v.tmin)}</b><small>${warn ? warn[1] : i.text}${v.prob != null ? ` · chuva ${v.prob}%` : ""}</small></span>${go}</button>`;
+  }
   // faixa do cartão do dia
   if (plan.kind === "ref") {
     if (!typ) return `<span class="muted">Sem dados do tempo agora (precisa de internet).</span>`;
@@ -1829,10 +1841,9 @@ $("#view").addEventListener("click", e => {
   else if (act === "addDay") { const ds = days(); const last = ds[ds.length - 1];
     const nd = { id: "d" + newId(), date: last ? addDays(last.date, 1) : S.trip.startDate, tipo: "folga", circ: "folga", title: "Dia de folga", km: null, saida: "", via: "", notes: "" };
     store.merge("trip", { days: [...S.trip.days, nd] }); openDays.add(nd.id); toast("Dia adicionado"); }
-  else if (act === "insDay") { const d = S.trip.days.find(x => x.id === id); if (!d) return;
-    const nd = { id: "d" + newId(), date: addDays(d.date, 1), tipo: "folga", circ: "folga", title: "Dia extra", km: null, saida: "", via: "", notes: "" };
-    store.merge("trip", { days: [...S.trip.days.map(x => x.date > d.date ? { ...x, date: addDays(x.date, 1) } : x), nd] });
-    openDays.add(nd.id); toast("Dia inserido · datas seguintes avançaram 1 dia"); }
+  else if (act === "insDay") insertDayAfter(id);
+  else if (act === "navPick") navPick(id);
+  else if (act === "dayPhotos") dayPhotosSheet(id);
   else if (act === "mapCirc") { mapFilter = b.dataset.v; if (mapView) mapView.lastFitKey = ""; go("mapa"); }
   else if (act === "mapf") { mapFilter = b.dataset.v; render(); }
   else if (act === "ptOpen") { const p = S.points?.[id]; if (!p) return; if (p.lat != null && mapView) mapView.focus(id); pointSheet(id); }
