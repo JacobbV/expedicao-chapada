@@ -94,9 +94,9 @@ export const POINTS_SEED = [
 
 export function seedDays(start = "2027-01-12") {
   const base = [
-    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 565, saida: "04:00",
+    { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 565, saida: "04:00", wp: [{ lat: -6.3487746, lng: -37.7475914 }, { lat: -6.7166701, lng: -37.8411908 }, { lat: -6.8447153, lng: -38.7342647 }, { lat: -8.0753535, lng: -39.1324311 }, { lat: -8.5089948, lng: -39.3080936 }, { lat: -9.3825, lng: -40.50222 }],
       via: "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina", notes: "PB-325 até o trevo da BR-230 (sem entrar em Pombal), à direita sentido Sousa → BR-116 (pelo Ceará) → BR-232 → BR-428. Chegar de dia." },
-    { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 528, saida: "04:00",
+    { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 528, saida: "04:00", wp: [{ lat: -9.3825, lng: -40.50222 }, { lat: -10.7995401, lng: -40.379613 }, { lat: -11.1791082, lng: -40.5152347 }, { lat: -11.5492584, lng: -41.1572668 }, { lat: -12.5623166, lng: -41.3886026 }],
       via: "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis", notes: "BR-407 → BA-131 → BR-324 → BA-144 (Morro do Chapéu) → BA-046/BA-142 → BR-242. Check-in, guardar as motos, centro histórico à noite." },
     { tipo: "passeio", circ: "c1", title: "Circuito 1 · Mosquito, Diabo, Pai Inácio", km: 125, saida: "07:00", via: "", notes: "" },
     { tipo: "passeio", circ: "c2", title: "Circuito 2 · Capão, Fumaça, Riachinho", km: 180, saida: "06:30", via: "", notes: "" },

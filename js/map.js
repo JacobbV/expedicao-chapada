@@ -50,13 +50,9 @@ export class MapView {
     this.L = L; this.el = el; this.onPin = onPin; this.onPlace = onPlace;
     this.markers = new Map(); this.placing = null; this.dragId = null; this.lastFitKey = "";
     this.map = L.map(el, { zoomControl: true, tap: true }).setView([-12.5, -41.43], 10);
-    // Mapa da CARTO (dados do OpenStreetMap): claro "Voyager" ou escuro "Dark Matter", conforme o tema do app
-    const dark = document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-    L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? "dark_all" : "rastertiles/voyager"}/{z}/{x}/{y}{r}.png`, {
-      maxZoom: 19, subdomains: "abcd",
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
     }).addTo(this.map);
-    this.el.classList.toggle("map-dark", dark);
     this.map.on("click", e => { if (this.placing) { const fn = this.placing; this.placing = null; this.el.classList.remove("placing"); fn(e.latlng); } });
     this.map.on("contextmenu", e => { if (!this.placing && !this.dragId) this.onPlace(e.latlng); });
   }

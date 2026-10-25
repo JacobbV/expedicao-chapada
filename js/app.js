@@ -588,8 +588,21 @@ function openExpense(id, kind) {
 let migrating = false;
 // Rota corrigida (v1.14.3): troca o caminho antigo que vinha no app pelo caminho combinado.
 // Só mexe nos dias que ainda estão com o texto/km antigos; o que o grupo editou fica como está.
-const ROUTE_V = 3;
+const ROUTE_V = 4;
+// Pontos de passagem pela estrada (trevo da BR-230, BR-230 depois de Cajazeiras, BR-116 em Salgueiro, BR-428 em Cabrobó...)
+const WP_IDA1 = [{ lat: -6.3487746, lng: -37.7475914 }, { lat: -6.7166701, lng: -37.8411908 }, { lat: -6.8447153, lng: -38.7342647 }, { lat: -8.0753535, lng: -39.1324311 }, { lat: -8.5089948, lng: -39.3080936 }, { lat: -9.3825, lng: -40.50222 }];
+const WP_IDA2 = [{ lat: -9.3825, lng: -40.50222 }, { lat: -10.7995401, lng: -40.379613 }, { lat: -11.1791082, lng: -40.5152347 }, { lat: -11.5492584, lng: -41.1572668 }, { lat: -12.5623166, lng: -41.3886026 }];
 function migrateRoute() {
+  if (S.trip && (S.trip.routeV || 0) === 3 && (ST.mode === "local" || (ST.user && ST.tripFresh && !ST.pending))) { // só acrescenta os pontos, sem mexer no resto
+    const wpFor = d => { const [o, de] = tripEnds(d).map(x => low(cleanCity(x)));
+      if (o.startsWith("catole") && de.startsWith("petrolina")) return WP_IDA1;
+      if (o.startsWith("petrolina") && de.startsWith("lencois")) return WP_IDA2;
+      if (o.startsWith("lencois") && de.startsWith("petrolina")) return [...WP_IDA2].reverse();
+      if (o.startsWith("petrolina") && de.startsWith("catole")) return [...WP_IDA1].reverse();
+      return null; };
+    store.merge("trip", { routeV: 4, days: S.trip.days.map(d => { const w = !d.wp && wpFor(d); return w ? { ...d, wp: w } : d; }) });
+    return;
+  }
   if (!S.trip || (S.trip.routeV || 0) >= ROUTE_V || (ST.mode === "cloud" && (!ST.user || !ST.tripFresh || ST.pending))) return;
   const N1 = "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina";
   const N2 = "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis";
@@ -604,7 +617,7 @@ function migrateRoute() {
     else if (o.startsWith("petrolina") && de.startsWith("catole") && [548, 563].includes(Number(d.km))) x = { ...d, km: 565 };
     if (x !== d) changed = true; return x;
   });
-  store.merge("trip", changed ? { days: nd, routeV: ROUTE_V } : { routeV: ROUTE_V });
+  store.merge("trip", changed ? { days: nd, routeV: 3 } : { routeV: 3 });
   if (changed) toast("Roteiro atualizado com a rota corrigida (sem Pombal, ida por Jacobina e Morro do Chapéu)");
 }
 function migrateLegacy() {
@@ -942,8 +955,10 @@ async function roadPath() {
   for (const d of days()) {
     if (!isRoad(d) || !tripEnds(d)[1]) continue;
     if (low(cleanCity(tripEnds(d)[0])).startsWith("lencois")) break; // volta: mesmo corredor
-    const R = await routeStops(d); if (!R) continue; seen = true;
-    R.stops.forEach(st => { const last = out[out.length - 1]; if (!last || distKm(last, st) > 2) out.push({ lat: st.lat, lng: st.lng }); });
+    let pts = Array.isArray(d.wp) && d.wp.length >= 2 ? d.wp : null;
+    if (!pts) { const R = await routeStops(d); if (!R) continue; pts = R.stops; }
+    seen = true;
+    pts.forEach(st => { const last = out[out.length - 1]; if (!last || distKm(last, st) > 2) out.push({ lat: st.lat, lng: st.lng }); });
   }
   const base = S.points?.pousada; if (seen && base?.lat != null && distKm(out[out.length - 1], base) > .5) out.push({ lat: base.lat, lng: base.lng });
   return seen && out.length >= 2 ? out : null;
@@ -1066,7 +1081,7 @@ function sobre() {
       ${l ? `<div class="socials">${l}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
       ${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}" style="justify-self:start">${id === me() ? "Editar meus contatos" : "Editar contatos"}</button>` : ""}</div>`; }).join("")}
   <div class="card stack"><h3>Créditos</h3>
-    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap, estilo CARTO · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
+    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
     <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
 }
@@ -1428,6 +1443,10 @@ let rideCur = null; // km já rodados no dia, calculado no modo pilotando
 // Google Maps no celular aceita até 3 paradas: tira as que ficam mais perto da anterior
 const pickEven = (arr, n, start = 0) => { const a = [...arr]; while (a.length > n) { let k = 0, min = Infinity; a.forEach((x, i) => { const g = (x.km ?? i) - (i ? (a[i - 1].km ?? i - 1) : start); if (g < min) { min = g; k = i; } }); a.splice(k, 1); } return a; };
 async function navTargets(d, fromHere) {
+  if (isRoad(d) && tripEnds(d)[1] && Array.isArray(d.wp) && d.wp.length >= 2 && !(fromHere && rideCur != null)) {
+    const w = d.wp;
+    return { origin: w[0], dest: w[w.length - 1], wps: w.slice(1, -1).slice(0, 3) };
+  }
   if (isRoad(d) && tripEnds(d)[1]) {
     const R = await routeStops(d); if (!R) return null;
     let st = R.stops, origin = st[0];
