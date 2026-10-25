@@ -1504,34 +1504,59 @@ function novidades() {
 
 /* ---------- RESUMO DA EXPEDIÇÃO ---------- */
 function resumo() {
-  const ds = days(), ids = riderIds(), ex = tripExpenses(), ph = photos();
+  const ds = days(), ids = riderIds(), ph = photos(), t = todayISO();
+  const all = tripExpenses(), ex = all.filter(e => !e.fromPrep), shown = all.filter(e => e.fromPrep);
   const first = ds[0], last = ds[ds.length - 1];
-  const kmReal = ids.map(id => ({ id, st: logStats(id) }));
-  const kmR = Math.max(0, ...kmReal.map(o => o.st.km));
-  const fuelL = ex.filter(e => e.cat === "combustivel").reduce((s, e) => s + (Number(e.liters) || 0), 0);
-  const ck = checkins().filter(c => c.kind === "ok").length;
+  const fase = !first || t < first.date ? "antes" : t <= last.date ? "durante" : "depois";
+  const road = ds.filter(d => isRoad(d)), pas = ds.filter(d => !isRoad(d) && d.circ !== "folga");
+  const roadKm = road.reduce((s2, d) => s2 + (Number(d.km) || 0), 0), volante = roadKm / avgSpeed();
+  const st = Object.fromEntries(ids.map(id => [id, logStats(id)]));
+  const kmR = Math.max(0, ...ids.map(id => st[id].km));
+  const ck = checkins().filter(c => c.kind === "ok");
+  const fuelL = ex.filter(e => e.cat === "combustivel").reduce((s2, e) => s2 + (Number(e.liters) || 0), 0);
+  const tile = (v, k, small) => `<div class="stat"><div class="v"${small ? ' style="font-size:1.45rem"' : ""}>${v}</div><div class="k">${k}</div></div>`;
+  const wait = txt => `<span class="muted" style="font-size:.95rem;font-family:var(--f-body);font-weight:600">${txt}</span>`;
+  const sec = (ic, title, body, extra) => `<section class="card stack sumsec"><div class="between"><h3>${ic} ${title}</h3>${extra || ""}</div>${body}</section>`;
+  const settle = settlement();
   return `${backLink}<div class="between"><h2>Resumo</h2><button class="btn sm primary" data-act="shareSum">Compartilhar</button></div>
   <div class="hero"><div class="label" style="color:var(--asphalt-muted)">${esc(S.trip.name || "Expedição")}</div>
     <div class="big" style="font-size:2.2rem">${first ? `${fmtD(first.date)} → ${fmtD(last.date)}` : ""}</div>
     <div class="sub">${ds.length} dias · ${ids.map(id => `${esc(rname(id))} (${esc(S.riders[id].moto || "")})`).join(" e ")}</div></div>
-  <div class="stats">
-    <div class="stat"><div class="v">${num(totalKm())}</div><div class="k">km no roteiro</div></div>
-    <div class="stat"><div class="v">${kmR ? num(kmR) : "—"}</div><div class="k">km rodados (diário de bordo)</div></div>
-    <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(ex))}</div><div class="k">gastos da viagem</div></div>
-    <div class="stat"><div class="v">${num(fuelL)} L</div><div class="k">combustível lançado</div></div>
-    ${kmReal.map(o => `<div class="stat"><div class="v">${o.st.real ? num(o.st.real, 1) : "—"}</div><div class="k">km/L real · ${esc(rname(o.id))}</div></div>`).join("")}
-    ${ids.map(id => `<div class="stat"><div class="v" style="font-size:1.5rem">${brl(myTripCost(id))}</div><div class="k">parte de ${esc(rname(id))}</div></div>`).join("")}
-    <div class="stat"><div class="v">${ph.length}</div><div class="k">fotos</div></div>
-    <div class="stat"><div class="v">${ck}</div><div class="k">“cheguei bem”</div></div>
-  </div>
-  ${catBars(ex)}
-  <div class="card stack"><h3>Dia a dia</h3>${ds.map((d, i) => { const p = ph.filter(x => x.day === d.id), c = CIRCUITS[d.circ] || CIRCUITS.estrada;
-    return `<div class="sumday" style="--c:${c.color}"><div><b>Dia ${i + 1} · ${wd(d.date)} ${fmtD(d.date)}</b><span>${esc(d.title)}${d.km ? ` · ${num(d.km)} km` : ""}</span></div>${p.length ? `<div class="phgrid sm">${thumbs(p, 4)}</div>` : ""}</div>`; }).join("")}</div>
-  ${ph.length ? `<div class="card stack"><h3>Fotos</h3><div class="phgrid">${thumbs(ph)}</div></div>` : ""}
-  <div class="row"><button class="btn sm" data-act="exportCSV" data-v="trip">Exportar gastos (planilha)</button></div>`;
+  ${fase === "antes" ? `<p class="note">Antes da viagem o resumo mostra o <b>planejado</b>. Km rodados, consumo real, fotos e “cheguei bem” vão aparecendo durante a viagem.</p>` : ""}
+
+  ${sec("🛣️", "Estrada", `<div class="stats">
+    ${tile(num(totalKm()), "km no roteiro")}
+    ${tile(kmR ? num(kmR) : wait("na viagem"), "km rodados (diário de bordo)")}
+    ${tile(`${road.length} + ${pas.length}`, `dias de estrada + passeio${ds.length - road.length - pas.length ? ` · ${ds.length - road.length - pas.length} de folga` : ""}`)}
+    ${tile(`~${Math.round(volante)} h`, `de volante nas estradas (média ${avgSpeed()} km/h)`)}</div>`)}
+
+  ${sec("🏍️", "Motos", ids.map(id => { const r = S.riders[id] || {}, real = st[id].real, cons = real || Number(r.consumo) || null, aut = cons && r.tanque ? cons * r.tanque : null, f = fuelPlan(id);
+    return `<div class="sumbike"><div><b>${esc(rname(id))}</b><span>${esc(r.moto || "")}</span></div>
+      <dl class="kv"><dt>Consumo</dt><dd class="num">${cons ? `${num(cons, 1)} km/L ${real ? "<small>(real)</small>" : "<small>(informado)</small>"}` : `<a href="#pilotos">informar</a>`}</dd>
+      <dt>Autonomia</dt><dd class="num">${aut ? `~${num(aut)} km` : "—"}</dd>
+      <dt>Combustível</dt><dd class="num">${f ? `${num(f.litros)} L · ${brl(f.custo)} previstos` : "—"}${st[id].litros ? ` · ${num(st[id].litros, 1)} L abastecidos` : ""}</dd>
+      ${st[id].km ? `<dt>Rodados</dt><dd class="num">${num(st[id].km)} km</dd>` : ""}</dl></div>`; }).join(""))}
+
+  ${sec("💰", "Dinheiro da viagem", `<div class="stats">
+    ${tile(brl(sumAmt(ex)), "gastos da viagem", 1)}
+    ${tile(brl(sumAmt(ex.filter(e => e.shared))), "divididos entre os dois", 1)}
+    ${ids.map(id => tile(brl(myTripCost(id)), `parte de ${esc(rname(id))}`, 1)).join("")}</div>
+    <p class="settle">${esc(settleText())}</p>
+    ${fuelL ? `<p class="muted" style="font-size:.85rem">${num(fuelL, 1)} L de combustível lançados nos gastos.</p>` : ""}
+    ${ex.length ? catBars(ex).replace('<div class="card stack"><h3>Por categoria</h3>', '<div class="stack"><div class="label">Por categoria</div>') : `<p class="muted">Nenhum gasto da viagem lançado ainda.</p>`}
+    ${shown.length ? `<div class="sumprep"><div class="label">Preparação mostrada ao grupo</div><p>${ids.map(id => { const v = sumAmt(shown.filter(e => e.rider === id)); return v ? `${esc(rname(id))}: <b>${brl(v)}</b>` : ""; }).filter(Boolean).join(" · ")}</p>
+      <p class="muted" style="font-size:.8rem">Revisão, peças e equipamento que cada um escolheu mostrar. Não entra na conta da viagem nem no acerto.</p></div>` : ""}`,
+    `<button class="btn sm" data-act="exportCSV" data-v="trip">Planilha</button>`)}
+
+  ${sec("📸", "Memórias", `<div class="stats">${tile(ph.length, ph.length === 1 ? "foto" : "fotos")}${tile(ck.length, "“cheguei bem”")}</div>
+    ${ph.length ? `<div class="phgrid">${thumbs(ph)}</div>` : `<p class="muted" style="font-size:.88rem">As fotos de cada dia (Roteiro → dia → + Fotos) aparecem aqui.</p>`}
+    ${ck.length ? `<ul class="hlist">${ck.slice(0, 5).map(ckLine).join("")}</ul>` : ""}`)}
+
+  ${sec("📅", "Dia a dia", ds.map((d, i) => { const p = ph.filter(x => x.day === d.id), c = CIRCUITS[d.circ] || CIRCUITS.estrada, g = ex.filter(e => e.date === d.date);
+    return `<div class="sumday" style="--c:${c.color}"><div><b>Dia ${i + 1} · ${wd(d.date)} ${fmtD(d.date)}</b><span>${esc(d.title)}${d.km ? ` · ${num(d.km)} km` : ""}${g.length ? ` · ${brl(sumAmt(g))} em gastos` : ""}</span></div>${p.length ? `<div class="phgrid sm">${thumbs(p, 4)}</div>` : ""}</div>`; }).join(""))}`;
 }
 function shareSummary() {
-  const ds = days(), ex = tripExpenses();
+  const ds = days(), ex = tripExpenses().filter(e => !e.fromPrep);
   const kmR = Math.max(0, ...riderIds().map(id => logStats(id).km));
   const lines = [`🏍️ ${S.trip.name || "Expedição Chapada"}`, ds.length ? `${fmtD(ds[0].date)} a ${fmtD(ds[ds.length - 1].date)} · ${ds.length} dias` : "",
     `${num(kmR || totalKm())} km ${kmR ? "rodados" : "no roteiro"}`, ...riderIds().map(id => { const r = logStats(id).real; return `${rname(id)} · ${S.riders[id].moto || ""}${r ? ` · ${num(r, 1)} km/L` : ""}`; }),

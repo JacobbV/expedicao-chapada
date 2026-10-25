@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.14.4 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.14.5 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -249,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.14.4** | 25/10/2026 | Botão **Limpar avisos** em Segurança (cada um apaga os seus; o admin apaga todos). Cartão **Complete seu perfil** no Início para quem ainda não preencheu tanque e consumo, ficha de emergência, placa, WhatsApp ou o checklist; some sozinho quando tudo estiver preenchido |
+| **1.14.5** | 25/10/2026 | **Resumo reorganizado** em seções: Estrada (km planejados e rodados, dias de estrada e passeio, horas de volante), Motos (consumo, autonomia e combustível de cada uma), Dinheiro da viagem (total, divididos, parte de cada um, acerto e categorias), Memórias (fotos e “cheguei bem”) e Dia a dia (com gastos do dia). A preparação que cada um mostra ao grupo agora aparece separada e **não entra mais no total da viagem** |
+| 1.14.4 | 25/10/2026 | Botão **Limpar avisos** em Segurança (cada um apaga os seus; o admin apaga todos). Cartão **Complete seu perfil** no Início para quem ainda não preencheu tanque e consumo, ficha de emergência, placa, WhatsApp ou o checklist; some sozinho quando tudo estiver preenchido |
 | 1.14.3 | 25/10/2026 | **Rota corrigida aplicada sozinha** no roteiro de vocês: dia 1 sem Pombal (PB-325 até o trevo da BR-230, Sousa, Cajazeiras, BR-116 pelo Ceará, Salgueiro, Cabrobó, Petrolina · 565 km), dia 2 por Jacobina e Morro do Chapéu (528 km) e as voltas com os mesmos km; só mexe nos dias que ainda estavam com o texto antigo. **Link da rota no Google Maps** em Editar dia: o botão Google Maps abre exatamente a rota que vocês montaram |
 | 1.14.2 | 25/10/2026 | Caminho do dia 1 sem Pombal: pela PB-325 até o trevo da BR-230 e à direita sentido Sousa |
 | 1.14.1 | 25/10/2026 | **Localização e Cheguei bem** agora abrem uma folha: pega a posição, mostra a mensagem e os botões **Enviar pelo WhatsApp** (abre o app direto, com a lista de conversas), **Outros apps…** e **Copiar texto**; se não achar a posição, explica o motivo e deixa tentar de novo. **Rota nova** no roteiro inicial: ida por Sousa, Cajazeiras e BR-116 pelo Ceará até Salgueiro e Cabrobó (563 km) e, no 2º dia, Juazeiro, Senhor do Bonfim, Jacobina, Morro do Chapéu, Utinga e Wagner até Lençóis (528 km) |
