@@ -95,7 +95,7 @@ export const POINTS_SEED = [
 export function seedDays(start = "2027-01-12") {
   const base = [
     { tipo: "estrada", circ: "estrada", title: "Catolé do Rocha → Petrolina", km: 563, saida: "04:00",
-      via: "Catolé do Rocha · Pombal · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina", notes: "PB-325 → BR-230 → BR-116 (pelo Ceará) → BR-232 → BR-428. Chegar de dia." },
+      via: "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina", notes: "PB-325 até o trevo da BR-230 (sem entrar em Pombal), à direita sentido Sousa → BR-116 (pelo Ceará) → BR-232 → BR-428. Chegar de dia." },
     { tipo: "estrada", circ: "chegada", title: "Petrolina → Lençóis + passeio leve", km: 528, saida: "04:00",
       via: "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis", notes: "BR-407 → BA-131 → BR-324 → BA-144 (Morro do Chapéu) → BA-046/BA-142 → BR-242. Check-in, guardar as motos, centro histórico à noite." },
     { tipo: "passeio", circ: "c1", title: "Circuito 1 · Mosquito, Diabo, Pai Inácio", km: 125, saida: "07:00", via: "", notes: "" },
