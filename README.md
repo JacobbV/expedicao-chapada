@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.5 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.6 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -249,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.15.5** | 25/10/2026 | **Estilos de mapa** grátis e sem chave, escolhidos embaixo do mapa: Padrão (OpenStreetMap), Relevo (OpenTopoMap) e Escuro (filtro sobre o padrão). **Créditos completos** em Sobre e no README, com fonte e licença de cada serviço |
+| **1.15.6** | 25/10/2026 | Estrada em **vermelho** no mapa, nos pins e nos dias de estrada do Roteiro (antes cinza); as cores dos circuitos continuam as mesmas |
+| 1.15.5 | 25/10/2026 | **Estilos de mapa** grátis e sem chave, escolhidos embaixo do mapa: Padrão (OpenStreetMap), Relevo (OpenTopoMap) e Escuro (filtro sobre o padrão). **Créditos completos** em Sobre e no README, com fonte e licença de cada serviço |
 | 1.15.4 | 25/10/2026 | Mapa de volta ao fundo claro do OpenStreetMap (o estilo da CARTO passou a exigir chave). A linha da estrada e o Google Maps sem link agora usam **pontos de passagem pela estrada**, tirados das rotas do grupo (trevo da BR-230, BR-230 depois de Cajazeiras, BR-116 em Salgueiro, BR-428 em Cabrobó, Jacobina e Morro do Chapéu), sem entrar em Sousa e Cajazeiras |
 | 1.15.3 | 25/10/2026 | **Mapa novo**: estilo da CARTO (claro “Voyager” ou escuro “Dark Matter”, conforme o tema do app), mais limpo que o padrão do OpenStreetMap. A **linha da estrada** no mapa agora passa pelas cidades do Caminho dos dias de ida (Sousa, Cajazeiras, Brejo Santo, Salgueiro, Cabrobó, Petrolina, Senhor do Bonfim, Jacobina, Morro do Chapéu, Utinga, Wagner) em vez de escolher outro caminho |
 | 1.15.2 | 25/10/2026 | Mensagens de **Localização** e **Cheguei bem** mais bonitas no WhatsApp: título em negrito, nome da cidade pela posição (OpenStreetMap), o dia da viagem e, na localização, quantos km faltam para o destino |
