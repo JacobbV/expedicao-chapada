@@ -224,6 +224,7 @@ function inicio() {
   return `
   <div class="hero"><div class="label" style="color:var(--asphalt-muted)">${esc(S.trip.name || "Expedição")}</div><div class="big">${big}</div><div class="sub">${sub}</div></div>
   ${margem}
+  ${profileTodo()}
   ${hojeCard(ds, t)}
   <div class="stats">
     <a class="stat" href="#checklist"><div class="v">${pm.pct}%</div><div class="k">checklist ${esc(rname(m))}</div></a>
@@ -240,6 +241,19 @@ function inicio() {
 
 /* Painel Hoje: o que importa no dia (antes da viagem mostra a prévia do 1º dia) */
 const m0 = () => me() || riderIds()[0];
+// O que falta no perfil de quem está usando o app (some sozinho quando tudo estiver preenchido)
+function profileTodo() {
+  const m = me(); if (!m) return ""; const r = S.riders[m] || {}, e = r.emerg || {}, so = r.social || {};
+  const items = [];
+  if (!Number(r.consumo) || !Number(r.tanque)) items.push([`<a href="#pilotos">Tanque e consumo da moto</a>`, "para o app calcular autonomia e onde abastecer"]);
+  if (!e.sangue || !e.contatoTel) items.push([`<a href="#seguranca">Ficha de emergência</a>`, "tipo sanguíneo, alergias e um contato"]);
+  if (!e.placa) items.push([`<a href="#seguranca">Placa da moto</a>`, "na ficha de emergência"]);
+  if (!so.whatsapp) items.push([`<a href="#pilotos">Seu WhatsApp</a>`, "em Pilotos e motos → Redes e contatos"]);
+  const pr = progress(m); if (pr.c.avaliar > 10) items.push([`<a href="#checklist" data-vr="${m}">Checklist</a>`, `${pr.c.avaliar} itens ainda em “Avaliar”`]);
+  if (!items.length) return "";
+  return `<div class="card todo"><div class="between"><h3>Complete seu perfil</h3><span class="muted" style="font-size:.8rem">${items.length} ${items.length === 1 ? "item" : "itens"}</span></div>
+    <ul class="hlist">${items.map(([a, b]) => `<li><span>○</span><div>${a} <span class="muted">· ${b}</span></div></li>`).join("")}</ul></div>`;
+}
 function hojeCard(ds, t) {
   if (!ds.length) return "";
   const last = ds[ds.length - 1].date;
@@ -1118,7 +1132,7 @@ function seguranca() {
   <div class="card stack"><h3>Avisar o grupo</h3>
     <div class="grid2"><button class="btn primary big" data-act="sendLoc">📍 Enviar minha localização</button><button class="btn big" data-act="sendOk">✅ Cheguei bem</button></div>
     <p class="muted" style="font-size:.82rem">Abre o WhatsApp com a mensagem e o link do mapa prontos: escolha o grupo ou a pessoa. O aviso também fica registrado aqui para o outro piloto.</p>
-    ${list.length ? `<div class="label">Últimos avisos</div><ul class="hlist">${list.map(ckLine).join("")}</ul>` : ""}</div>
+    ${list.length ? `<div class="between"><div class="label">Últimos avisos</div>${checkins().some(c => c.rider === me()) || isAdmin() ? `<button class="btn sm" data-act="clearCk">${isAdmin() ? "Limpar avisos" : "Limpar meus avisos"}</button>` : ""}</div><ul class="hlist">${list.map(ckLine).join("")}</ul>` : ""}</div>
   <div class="card stack"><h3>Números úteis</h3>
     <div class="grid2 sos">${[["192", "SAMU"], ["193", "Bombeiros"], ["191", "PRF · rodovia federal"], ["190", "Polícia Militar"]].map(([n, l]) => `<a class="btn" href="tel:${n}"><b>${n}</b><small>${l}</small></a>`).join("")}</div></div>
   ${riderIds().map(id => { const e = S.riders[id].emerg || {}, filled = EMERG.filter(([k]) => e[k]);
@@ -1759,6 +1773,9 @@ $("#view").addEventListener("click", e => {
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
   else if (act === "sendLoc") sendAlert("loc");
+  else if (act === "clearCk") { const mine = checkins().filter(c => isAdmin() || c.rider === me()); if (!mine.length) return;
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = `Toque de novo para apagar ${mine.length}`; return; }
+    store.merge("meta/checkins", mine.reduce((o, c) => (o[c.id] = null, o), {})); toast(`${mine.length} ${mine.length === 1 ? "aviso apagado" : "avisos apagados"}`); }
   else if (act === "navG" || act === "navW") { const d = days().find(x => x.id === id); if (d) navOpen(d, act === "navW" ? "waze" : "google", !!b.dataset.here); }
   else if (act === "exportCSV") exportGastos(b.dataset.v);
   else if (act === "openPhoto") photoSheet(id);

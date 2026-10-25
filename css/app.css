@@ -456,3 +456,4 @@ body.riding main{padding:max(12px,env(safe-area-inset-top)) 0 max(12px,env(safe-
 .sumday span{font-size:.85rem;color:var(--muted)}
 .sumday{flex-wrap:wrap}.sumday>div:first-child{flex:1 1 200px;min-width:0}
 .msgprev{background:var(--mute-bg);border-radius:10px;padding:10px 12px;font-size:.88rem;overflow-wrap:anywhere}
+.todo{border-left:6px solid var(--stripe);display:grid;gap:8px}
