@@ -586,7 +586,7 @@ let migrating = false;
 // Só mexe nos dias que ainda estão com o texto/km antigos; o que o grupo editou fica como está.
 const ROUTE_V = 3;
 function migrateRoute() {
-  if (!S.trip || (S.trip.routeV || 0) >= ROUTE_V || (ST.mode === "cloud" && !ST.user)) return;
+  if (!S.trip || (S.trip.routeV || 0) >= ROUTE_V || (ST.mode === "cloud" && (!ST.user || !ST.tripFresh || ST.pending))) return;
   const N1 = "Catolé do Rocha · Sousa · Cajazeiras · Brejo Santo · Salgueiro · Cabrobó · Petrolina";
   const N2 = "Petrolina/Juazeiro · Senhor do Bonfim · Jacobina · Morro do Chapéu · Utinga · Wagner · BR-242 · Lençóis";
   let changed = false;
@@ -1556,12 +1556,24 @@ function resumo() {
     return `<div class="sumday" style="--c:${c.color}"><div><b>Dia ${i + 1} · ${wd(d.date)} ${fmtD(d.date)}</b><span>${esc(d.title)}${d.km ? ` · ${num(d.km)} km` : ""}${g.length ? ` · ${brl(sumAmt(g))} em gastos` : ""}</span></div>${p.length ? `<div class="phgrid sm">${thumbs(p, 4)}</div>` : ""}</div>`; }).join(""))}`;
 }
 function shareSummary() {
-  const ds = days(), ex = tripExpenses().filter(e => !e.fromPrep);
+  const ds = days(), ex = tripExpenses().filter(e => !e.fromPrep), t = todayISO(), ph = photos();
+  const first = ds[0], last = ds[ds.length - 1];
+  const fase = !first || t < first.date ? "antes" : t <= last.date ? "durante" : "depois";
   const kmR = Math.max(0, ...riderIds().map(id => logStats(id).km));
-  const lines = [`🏍️ ${S.trip.name || "Expedição Chapada"}`, ds.length ? `${fmtD(ds[0].date)} a ${fmtD(ds[ds.length - 1].date)} · ${ds.length} dias` : "",
-    `${num(kmR || totalKm())} km ${kmR ? "rodados" : "no roteiro"}`, ...riderIds().map(id => { const r = logStats(id).real; return `${rname(id)} · ${S.riders[id].moto || ""}${r ? ` · ${num(r, 1)} km/L` : ""}`; }),
-    `Gastos da viagem: ${brl(sumAmt(ex))}`, `${photos().length} fotos`, "", "https://jacobbv.github.io/expedicao-chapada/"].filter(x => x !== null);
-  const text = lines.join("\n");
+  const short = d => { const [o, de] = tripEnds(d); return de ? `${cleanCity(o)} → ${cleanCity(de)}` : d.title; };
+  const L = [`🏍️ *${(S.trip.name || "Expedição Chapada").toUpperCase()}*`];
+  if (first) L.push(`📅 ${fmtD(first.date)} a ${fmtD(last.date)} · ${ds.length} dias${fase === "antes" ? ` · faltam ${diffDays(t, first.date)} dias!` : fase === "durante" ? ` · hoje é o dia ${ds.findIndex(d => d.date === t) + 1}` : " · concluída ✅"}`);
+  L.push(`🛣️ ${num(totalKm())} km no roteiro${kmR ? ` · ${num(kmR)} km rodados` : ""}`, "", "*Pilotos*");
+  riderIds().forEach(id => { const r = logStats(id).real; L.push(`• ${rname(id)} · ${S.riders[id].moto || ""}${r ? ` · ${num(r, 1)} km/L` : ""}`); });
+  L.push("", "*Roteiro*");
+  ds.forEach(d => L.push(`${fmtD(d.date)} ${isRoad(d) ? "🛣️" : d.circ === "folga" ? "😴" : "🏞️"} ${short(d)}${d.km ? ` · ${num(d.km)} km` : ""}`));
+  const extra = [];
+  if (fase !== "antes" && ex.length) extra.push(`💰 Gastos da viagem: ${brl(sumAmt(ex))}`);
+  if (ph.length) extra.push(`📸 ${ph.length} ${ph.length === 1 ? "foto" : "fotos"}`);
+  const ck = checkins().filter(c => c.kind === "ok").length; if (ck) extra.push(`✅ ${ck} “cheguei bem”`);
+  if (extra.length) L.push("", ...extra);
+  L.push("", "Acompanhe: https://jacobbv.github.io/expedicao-chapada/");
+  const text = L.join("\n");
   if (navigator.share) navigator.share({ title: S.trip.name || "Expedição Chapada", text }).catch(() => {});
   else location.href = waHref("", text);
 }

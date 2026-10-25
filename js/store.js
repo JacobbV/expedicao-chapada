@@ -87,7 +87,7 @@ function cloudStore() {
   const state = emptyState();
   const status = { mode: "cloud", online: navigator.onLine, pending: false, user: null, uid: null, ready: false, authReady: false, error: "", prepError: "" };
   const pendingBy = {};
-  let cb, fs, db, auth, authMod, unsubs = [], seeded = false;
+  let cb, fs, db, auth, authMod, fbApp, unsubs = [], seeded = false, memCache = false;
   const emit = () => { status.pending = Object.values(pendingBy).some(Boolean); cb && cb(state, status); };
   const base = ["trips", TRIP_ID];
 
@@ -124,11 +124,11 @@ function cloudStore() {
     unsubs.forEach(u => u()); unsubs = [];
     const opt = { includeMetadataChanges: true };
     unsubs.push(fs.onSnapshot(refFor("trip"), opt, s => {
-      pendingBy.trip = s.metadata.hasPendingWrites;
+      pendingBy.trip = s.metadata.hasPendingWrites; status.tripFresh = !s.metadata.fromCache;
       if (s.exists()) { state.trip = s.data(); status.ready = true; if (!s.metadata.fromCache && !state.trip.pointsSeeded) seedPointsIfNeeded().catch(() => {}); }
       else if (!s.metadata.fromCache) seedIfNeeded().catch(e => { status.error = e.message; emit(); });
       emit();
-    }, e => { status.error = e.code === "permission-denied" ? "Sem permissão: confira o e-mail nas regras do Firestore." : e.message; emit(); }));
+    }, e => { if (terminated(e)) { reopen(); return; } status.error = e.code === "permission-denied" ? "Sem permissão: confira o e-mail nas regras do Firestore." : e.message; emit(); }));
     const cols = [["riders", "riders"], ["checklist", "checklist"], ["meta", null], ["expenses", "expenses"], ["lodging", "lodging"], ["points", "points"]];
     for (const [col, target] of cols) {
       unsubs.push(fs.onSnapshot(fs.collection(db, ...base, col), opt, qs => {
@@ -151,6 +151,21 @@ function cloudStore() {
       const map = {}; qs.forEach(d => { map[d.id] = d.data(); }); state.prep = map; emit();
     }, e => { status.prepError = e.code === "permission-denied" ? "Sem permissão para a área privada: publique as regras novas do Firestore (README)." : e.message; emit(); }));
   }
+  const terminated = e => /terminated|IndexedDB|Connection to Indexed/i.test(e?.message || "");
+  // No iPhone, ao abrir a galeria ou voltar do segundo plano, o banco local às vezes é encerrado.
+  // Nesse caso o app abre o banco de novo (na segunda vez, só em memória) e repete a operação.
+  async function reopen() {
+    try { unsubs.forEach(u => u()); } catch (e) {} unsubs = [];
+    try { await fs.terminate(db); } catch (e) {}
+    try { db = fs.initializeFirestore(fbApp, { localCache: memCache ? fs.memoryLocalCache() : fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
+    catch (e) { db = fs.getFirestore(fbApp); }
+    memCache = true; status.error = "";
+    if (status.uid) listen();
+  }
+  async function run(op) {
+    try { return await op(); }
+    catch (e) { if (!terminated(e)) throw e; await reopen(); return await op(); }
+  }
   const w = p => p.catch(e => { status.error = e.message; emit(); });
   return {
     status,
@@ -162,7 +177,7 @@ function cloudStore() {
         const [appMod, fsMod, aMod] = await Promise.all([
           import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js"), import(FB + "firebase-auth.js")]);
         fs = fsMod; authMod = aMod;
-        const app = appMod.initializeApp(firebaseConfig);
+        const app = appMod.initializeApp(firebaseConfig); fbApp = app;
         db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) });
         auth = aMod.getAuth(app);
         await aMod.setPersistence(auth, aMod.browserLocalPersistence);
@@ -179,17 +194,18 @@ function cloudStore() {
     async signIn(email, pw) { await authMod.signInWithEmailAndPassword(auth, email, pw); },
     async signOut() { await authMod.signOut(auth); },
     async resetPassword(email) { auth.languageCode = "pt-BR"; await authMod.sendPasswordResetEmail(auth, email); },
-    merge(key, patch) { return w(fs.setDoc(refFor(key), toFs(patch), { merge: true })); },
-    put(col, id, data) { return w(fs.setDoc(fs.doc(db, ...base, col, id), data)); },
-    remove(col, id) { return w(fs.deleteDoc(fs.doc(db, ...base, col, id))); },
-    putPrep(id, data) { return w(fs.setDoc(fs.doc(db, ...base, "private", status.uid, "prep", id), data)); },
-    removePrep(id) { return w(fs.deleteDoc(fs.doc(db, ...base, "private", status.uid, "prep", id))); },
-    putPhoto(id, meta, full) { const b = fs.writeBatch(db);
-      b.set(fs.doc(db, ...base, "photos", id), meta); b.set(fs.doc(db, ...base, "photofull", id), { rider: meta.rider, data: full });
-      return b.commit().catch(e => { throw new Error(e.code === "permission-denied" ? "Sem permissão para fotos: publique as regras novas do Firestore." : e.message); }); },
-    mergePhoto(id, patch) { return w(fs.setDoc(fs.doc(db, ...base, "photos", id), patch, { merge: true })); },
-    async getPhotoFull(id) { try { const d = await fs.getDoc(fs.doc(db, ...base, "photofull", id)); return d.exists() ? d.data().data : null; } catch (e) { return null; } },
-    removePhoto(id) { const b = fs.writeBatch(db); b.delete(fs.doc(db, ...base, "photos", id)); b.delete(fs.doc(db, ...base, "photofull", id)); return w(b.commit()); },
+    merge(key, patch) { return w(run(() => fs.setDoc(refFor(key), toFs(patch), { merge: true }))); },
+    put(col, id, data) { return w(run(() => fs.setDoc(fs.doc(db, ...base, col, id), data))); },
+    remove(col, id) { return w(run(() => fs.deleteDoc(fs.doc(db, ...base, col, id)))); },
+    putPrep(id, data) { return w(run(() => fs.setDoc(fs.doc(db, ...base, "private", status.uid, "prep", id), data))); },
+    removePrep(id) { return w(run(() => fs.deleteDoc(fs.doc(db, ...base, "private", status.uid, "prep", id)))); },
+    putPhoto(id, meta, full) {
+      return run(() => { const b = fs.writeBatch(db);
+        b.set(fs.doc(db, ...base, "photos", id), meta); b.set(fs.doc(db, ...base, "photofull", id), { rider: meta.rider, data: full }); return b.commit(); })
+        .catch(e => { throw new Error(e.code === "permission-denied" ? "Sem permissão para fotos: publique as regras novas do Firestore." : terminated(e) ? "A conexão do app caiu ao abrir a galeria. Feche e abra o app e tente de novo." : e.message); }); },
+    mergePhoto(id, patch) { return w(run(() => fs.setDoc(fs.doc(db, ...base, "photos", id), patch, { merge: true }))); },
+    async getPhotoFull(id) { try { const d = await run(() => fs.getDoc(fs.doc(db, ...base, "photofull", id))); return d.exists() ? d.data().data : null; } catch (e) { return null; } },
+    removePhoto(id) { return w(run(() => { const b = fs.writeBatch(db); b.delete(fs.doc(db, ...base, "photos", id)); b.delete(fs.doc(db, ...base, "photofull", id)); return b.commit(); })); },
     exportJSON() { return JSON.stringify(state, null, 2); },
   };
 }
