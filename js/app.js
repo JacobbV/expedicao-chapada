@@ -1096,6 +1096,33 @@ function getPos() {
   return one(true).then(r => r.pos || r.err === 1 ? r : one(false));
 }
 const POS_ERR = { 0: "Este aparelho não informa localização.", 1: "Localização bloqueada para o app. Libere em Configurações do celular → navegador (ou no cadeado da barra de endereço) e tente de novo.", 2: "Não deu para achar a posição agora (sem GPS ou sinal).", 3: "O GPS demorou demais para responder." };
+// Nome do lugar (cidade - UF) pela posição, com OpenStreetMap; guardado por região
+async function placeName(pos) {
+  const k = `geo:rev:${pos.lat.toFixed(2)},${pos.lng.toFixed(2)}`;
+  try { const c = localStorage.getItem(k); if (c) return c; } catch (e) {}
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 5000);
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.lat}&lon=${pos.lng}&zoom=12&accept-language=pt-BR`, { signal: ctl.signal });
+    const j = await r.json(), a = j.address || {};
+    const city = a.city || a.town || a.village || a.municipality || a.hamlet || a.county || "";
+    const uf = (a["ISO3166-2-lvl4"] || "").replace(/^BR-/, "");
+    const v = city ? `${city}${uf ? " - " + uf : ""}` : "";
+    if (v) try { localStorage.setItem(k, v); } catch (e) {}
+    return v;
+  } catch (e) { return ""; }
+}
+// Linha do dia da viagem: "Dia 1 · Catolé → Petrolina · faltam ~240 km"
+async function tripContext(pos) {
+  const ds = days(), t = todayISO(), i = ds.findIndex(d => d.date === t); if (i < 0) return "";
+  const d = ds[i]; let line = `🛣️ Dia ${i + 1} · ${esc(d.title).replace(/&amp;/g, "&")}`;
+  if (pos && isRoad(d) && tripEnds(d)[1]) {
+    try { const R = await routeStops(d); if (R) { const st = R.stops; let best = null;
+      for (let k = 1; k < st.length; k++) { const a = st[k - 1], b = st[k], da = distKm(a, pos), db = distKm(pos, b), det = da + db - distKm(a, b);
+        if (!best || det < best.det) best = { det, km: a.km + (b.km - a.km) * da / Math.max(.1, da + db) }; }
+      const left = Math.round(st[st.length - 1].km - best.km); if (best.det < 60 && left > 5) line += ` · faltam ~${num(left)} km`; } } catch (e) {}
+  }
+  return line;
+}
 // Avisar o grupo: abre uma folha, pega a localização e só então mostra os botões de envio.
 // O toque no botão abre o WhatsApp direto (whatsapp://), com a lista de conversas para escolher.
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1109,11 +1136,17 @@ function sendAlert(kind) {
       box.innerHTML = `<p class="muted">Pegando sua localização…</p>`;
       const g = await getPos(); if (!box.isConnected) return;
       const pos = g.pos || null, now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`;
-      const link = pos ? `\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}` : "";
-      const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `▶ Localização de ${rname(m)}, às ${hm}:${link || "\n(sem localização agora)"}\n— Expedição Chapada`;
+      box.innerHTML = `<p class="muted">Montando a mensagem…</p>`;
+      const where = pos ? await placeName(pos) : ""; if (!box.isConnected) return;
+      const ctx = await tripContext(kind === "ok" ? null : pos); if (!box.isConnected) return;
+      const L = kind === "ok" ? [`✅ *${rname(m)} chegou bem!*`, `📍 ${where || place || "Local no mapa abaixo"} · ${hm}`]
+        : [`📍 *Localização de ${rname(m)}*`, `${where ? "Perto de " + where : "Posição no mapa abaixo"} · ${hm}`];
+      if (ctx) L.push(ctx);
+      L.push(pos ? `https://maps.google.com/?q=${pos.lat},${pos.lng}` : "(sem localização agora)", "— Expedição Chapada 🏍️");
+      const text = isMobile ? L.join("\n") : L.join("\n").replace(/[\u{1F000}-\u{1FFFF}]\uFE0F?/gu, "").replace(/^ +/gm, "");
       const wa = isMobile ? `whatsapp://send?text=${encodeURIComponent(text)}` : waHref("", text);
       box.innerHTML = `${pos ? "" : `<div class="warnbox">${esc(POS_ERR[g.err] || POS_ERR[2])}</div>`}
-        <div class="msgprev">${esc(text).replace(/\n/g, "<br>")}</div>
+        <div class="msgprev">${esc(text).replace(/\*(.+?)\*/g, "<b>$1</b>").replace(/\n/g, "<br>")}</div>
         <a class="btn primary block" id="alWa" href="${wa}" ${isMobile ? "" : 'target="_blank" rel="noopener"'}>Enviar pelo WhatsApp</a>
         <div class="grid2">${navigator.share ? `<button type="button" class="btn" id="alSh">Outros apps…</button>` : ""}<button type="button" class="btn" id="alCp">Copiar texto</button></div>
         ${pos ? "" : `<button type="button" class="btn" id="alRe">Tentar pegar a localização de novo</button>`}

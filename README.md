@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.1 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.15.2 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -249,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.15.1** | 25/10/2026 | Títulos de seção de volta nos cartões (Caminho, Tempo no caminho, Abastecimento; no Início também Horário e distância e Pernoite), caminho com setas entre as cidades e abastecimento como “Jacó: cidade → cidade” |
+| **1.15.2** | 25/10/2026 | Mensagens de **Localização** e **Cheguei bem** mais bonitas no WhatsApp: título em negrito, nome da cidade pela posição (OpenStreetMap), o dia da viagem e, na localização, quantos km faltam para o destino |
+| 1.15.1 | 25/10/2026 | Títulos de seção de volta nos cartões (Caminho, Tempo no caminho, Abastecimento; no Início também Horário e distância e Pernoite), caminho com setas entre as cidades e abastecimento como “Jacó: cidade → cidade” |
 | 1.15.0 | 25/10/2026 | **Telas mais limpas.** Dia do Roteiro: chegada estimada no cabeçalho; aberto, só Caminho, Tempo e Abastecer (uma linha por piloto) e uma barra com **Navegar · Mapa · Fotos · Editar**. Navegar pergunta Google Maps ou Waze; Fotos abre a galeria do dia; inserir dia foi para dentro de Editar; trechos e dicas dos circuitos ficam recolhidos. Painel do Início: tempo, saída → chegada, km, pernoite e abastecimento em poucas linhas, com os mesmos botões |
 | 1.14.6 | 25/10/2026 | Correção do erro **“The client has already been terminated”** ao enviar fotos no iPhone: quando a conexão local cai (galeria, segundo plano), o app reabre o banco e repete a operação. A atualização automática do roteiro agora só roda com os dados do servidor, para não apagar o que foi editado (como o link da rota) usando uma cópia antiga do celular. **Compartilhar** do Resumo com texto mais bonito para o WhatsApp: contagem regressiva, pilotos e roteiro dia a dia, e gastos só depois que a viagem começa |
 | 1.14.5 | 25/10/2026 | **Resumo reorganizado** em seções: Estrada (km planejados e rodados, dias de estrada e passeio, horas de volante), Motos (consumo, autonomia e combustível de cada uma), Dinheiro da viagem (total, divididos, parte de cada um, acerto e categorias), Memórias (fotos e “cheguei bem”) e Dia a dia (com gastos do dia). A preparação que cada um mostra ao grupo agora aparece separada e **não entra mais no total da viagem** |
