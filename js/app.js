@@ -218,10 +218,7 @@ function inicio() {
   return `
   <div class="hero"><div class="label" style="color:var(--asphalt-muted)">${esc(S.trip.name || "Expedição")}</div><div class="big">${big}</div><div class="sub">${sub}</div></div>
   ${margem}
-  ${next ? `<a class="card" href="#roteiro" style="text-decoration:none;color:inherit;border-left:6px solid ${CIRCUITS[next.circ]?.color || "var(--road)"}">
-     <div class="label">${next.date === t ? "Hoje" : "Próximo dia"} · ${wd(next.date)} ${fmtD(next.date)}</div>
-     <div style="font-weight:800;font-size:1.1rem;margin-top:2px">${esc(next.title)}</div>
-     <div class="muted" style="font-size:.88rem">${next.km ? num(next.km) + " km" : ""}${next.saida ? " · saída " + next.saida.replace(":", "h") : ""}</div></a>` : ""}
+  ${hojeCard(ds, t)}
   <div class="stats">
     <a class="stat" href="#checklist"><div class="v">${pm.pct}%</div><div class="k">checklist ${esc(rname(m))}</div></a>
     ${po ? `<a class="stat" href="#checklist" data-vr="${other}"><div class="v">${po.pct}%</div><div class="k">checklist ${esc(rname(other))}</div></a>` : ""}
@@ -233,6 +230,48 @@ function inicio() {
     <p class="note" style="margin-top:10px">Estimativa pela soma dos km do roteiro e pelo consumo de cada moto. O preço da gasolina muda em Ajustes.</p></div>
   <div class="card"><h3>Acerto de contas</h3><p class="settle" style="margin-top:6px">${esc(settleText())}</p>
     <p class="muted" style="font-size:.85rem;margin-top:6px">🔒 Meus gastos (só você vê): <a href="#gastos" data-act="gtab" data-v="prep">${brl(myPrep)}</a></p></div>`;
+}
+
+/* Painel Hoje: o que importa no dia (antes da viagem mostra a prévia do 1º dia) */
+function hojeCard(ds, t) {
+  if (!ds.length) return "";
+  const last = ds[ds.length - 1].date;
+  if (t > last) return "";
+  let i = ds.findIndex(d => d.date === t), tag;
+  if (i >= 0) tag = "Hoje";
+  else { i = ds.findIndex(d => d.date > t); tag = t < ds[0].date ? `Prévia do dia 1` : "Próximo dia"; }
+  const d = ds[i], c = CIRCUITS[d.circ] || CIRCUITS.estrada, nx = ds[i + 1];
+  const rows = [];
+  // Horário
+  const t0 = toH(d.saida);
+  if (d.saida) rows.push(["🕓", `Saída às <b>${d.saida.replace(":", "h")}</b>${isRoad(d) && d.km && tripEnds(d)[1] ? ` · chegada por volta de <b>${hhmm(t0 + d.km / avgSpeed())}</b> em ${esc(cleanCity(tripEnds(d)[1]))}` : ""}`]);
+  else if (isRoad(d)) rows.push(["🕓", `Hora de saída ainda não definida · <a href="#roteiro" data-act="editDay" data-id="${d.id}">definir</a>`]);
+  // Combustível do dia
+  if (d.km) {
+    const parts = riderIds().map(id => { const r = S.riders[id], aut = (Number(r.tanque) || 0) * (Number(r.consumo) || 0);
+      if (!aut) return `${esc(rname(id))}: <a href="#pilotos">informar tanque e consumo</a>`;
+      const n = Math.ceil(d.km / (aut * .85)) - 1;
+      return `${esc(rname(id))}: ${n <= 0 ? "um tanque dá" : `<b>${n} ${n === 1 ? "parada" : "paradas"}</b> para abastecer`} <span class="muted">(autonomia ~${num(aut)} km)</span>`; });
+    rows.push(["⛽", `${num(d.km)} km · ${parts.join(" · ")}`]);
+  }
+  // Pernoite
+  const ln = lodgingFor(i, ds); if (ln && ln !== "—") rows.push(["🛏️", `Pernoite: <a href="#hospedagem">${esc(ln)}</a>`]);
+  // Checklist que falta (meu)
+  const m = me() || riderIds()[0];
+  if (m) {
+    const falta = []; for (const [, items] of CHECKLIST) for (const it of items) { const st = itemStatus(m, it[0]); if (st === "prov" || st === "rev" || st === "avaliar") falta.push(it[1]); }
+    if (falta.length) rows.push(["✅", `Falta no seu checklist: ${falta.slice(0, 3).map(esc).join(", ")}${falta.length > 3 ? ` e mais ${falta.length - 3}` : ""} · <a href="#checklist" data-vr="${m}">ver</a>`]);
+    else rows.push(["✅", "Seu checklist está completo."]);
+  }
+  return `<div class="card hoje" style="border-left:6px solid ${c.color}">
+    <div class="between"><div class="label">${tag} · ${wd(d.date)} ${fmtD(d.date)}</div><span class="muted" style="font-size:.78rem">Dia ${i + 1} de ${ds.length}</span></div>
+    <div class="ht">${esc(d.title)}</div>
+    <div class="muted" style="font-size:.85rem">${esc(c.short || c.name)}</div>
+    <div data-wx="${d.id}" data-mode="strip"><span class="muted">Carregando o tempo…</span></div>
+    <ul class="hlist">${rows.map(([ic, h]) => `<li><span>${ic}</span><div>${h}</div></li>`).join("")}</ul>
+    <div class="row"><button class="btn sm" data-act="wxDay" data-id="${d.id}">Tempo do dia</button><button class="btn sm" data-act="mapCirc" data-v="${d.circ}">Ver no mapa</button><a class="btn sm" href="#roadbook">Roadbook</a></div>
+    ${nx ? `<p class="muted" style="font-size:.8rem">Depois: ${wd(nx.date)} ${fmtD(nx.date)} · ${esc(nx.title)}${nx.saida ? " · saída " + nx.saida.replace(":", "h") : ""}</p>` : ""}
+  </div>`;
 }
 
 /* ---------- ROTEIRO ---------- */

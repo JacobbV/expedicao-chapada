@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.10.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.11.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -22,7 +22,7 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 
 | Tela | O que faz |
 |---|---|
-| **Início** | Contagem regressiva, folga até o fim das férias (avisa se o roteiro passar da data), próximo dia, progresso do checklist dos dois, combustível previsto e acerto de contas |
+| **Início** | Contagem regressiva, folga até o fim das férias (avisa se o roteiro passar da data) e **painel Hoje**: o dia da viagem (antes de sair, a prévia do dia 1) com tempo, saída e chegada estimada, quantas paradas cada moto precisa para abastecer, pernoite e o que falta no seu checklist. Abaixo, checklist dos dois, pendências, combustível previsto e acerto de contas |
 | **Roteiro** | Dias com o circuito de cada um, em cores. Permite editar data, saída, km e observações, trocar o circuito de um dia, **inserir um dia depois de outro** (as datas seguintes avançam) ou **remover** (as seguintes recuam), mudar a data de saída de tudo e abrir os pontos do dia no mapa |
 | **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo, filtrar por circuito e **ligar os pontos** para ver os km de cada circuito |
 | **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
@@ -242,7 +242,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.10.0** | 25/10/2026 | **Tempo mais completo:** semana em barras no topo do Roteiro com sugestão de troca de circuito em dia de chuva; faixa e avisos no cartão do dia; folha **Tempo do dia** com o tempo em cada cidade do caminho na hora que vocês passam, avisos (calor, chuva, pôr do sol, rajadas, UV), hora a hora, vento, UV, sol e chuva; antes da previsão, **clima típico dos últimos 5 anos**; média na estrada em Ajustes |
+| **1.11.0** | 25/10/2026 | **Painel Hoje** no Início: o dia (ou a prévia do dia 1 antes da viagem) com tempo, saída e chegada estimada, paradas para abastecer de cada moto pela autonomia, pernoite, o que falta no seu checklist, atalhos para Tempo do dia, mapa e roadbook, e o dia seguinte |
+| 1.10.0 | 25/10/2026 | **Tempo mais completo:** semana em barras no topo do Roteiro com sugestão de troca de circuito em dia de chuva; faixa e avisos no cartão do dia; folha **Tempo do dia** com o tempo em cada cidade do caminho na hora que vocês passam, avisos (calor, chuva, pôr do sol, rajadas, UV), hora a hora, vento, UV, sol e chuva; antes da previsão, **clima típico dos últimos 5 anos**; média na estrada em Ajustes |
 | 1.9.1 | 24/10/2026 | Correção no menu: os textos ao lado de cada item (confirmadas, abertas, versão) apareciam cortados |
 | 1.9.0 | 24/10/2026 | **Menu novo** (perfil no topo, dias para a saída, sincronização, grupos com ícones e Sair da conta); **Roadbook 10 × 15 cm** com um cartão por dia para imprimir ou salvar em PDF; **tempo por dia** no Roteiro (previsão até 15 dias; antes disso, o mesmo dia do ano anterior como referência) |
 | 1.8.0 | 24/10/2026 | **Edição em conjunto**: o Kaique passa a editar roteiro, mapa, hospedagem, pendências, gasolina e os textos Quem somos, Nossa história e Objetivos; continuam só do admin as férias, “Sobre o app” e adicionar/remover pilotos. O aviso de férias aparece só para o admin; os outros veem o prazo da viagem e o motivo. Regras do Firestore atualizadas |

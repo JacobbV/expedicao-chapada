@@ -380,3 +380,10 @@ body.not-admin .adm{display:none!important}
 .wk .mn{color:var(--muted);font-family:var(--f-mono);text-align:right}
 .wk .mx{font-family:var(--f-mono)}
 .wk .r{color:var(--info);font-weight:700;font-size:.76rem;text-align:right}
+
+/* ---------- Painel Hoje ---------- */
+.hoje{display:grid;gap:10px}
+.hoje .ht{font:800 1.35rem/1.15 var(--f-display);text-transform:uppercase;letter-spacing:.01em}
+.hlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.hlist li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:.88rem;line-height:1.4}
+.hlist li>span{font-size:1.05rem;line-height:1.3}
