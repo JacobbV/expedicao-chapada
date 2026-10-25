@@ -29,7 +29,7 @@ const parseNum = v => { if (v === "" || v == null) return null; const n = parseF
 
 function toast(msg) {
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => t.remove(), Math.max(2200, msg.length * 60));
 }
 
 /* ---------- identidade ---------- */
@@ -481,6 +481,7 @@ function expForm(e, kind) {
   const readonly = othersPrep || (!prep && !isNew && !canEdit(e.rider));
   const riders = riderIds().filter(id => ST.mode === "local" || id === m || id === e.rider);
   if (e.cat) e = { ...e, cat: normCat(e.cat) };
+  const fuelLog = !prep && e.fromLog ? S.riders?.[e.rider]?.diario?.[e.fromLog] : null;
   const catList = othersPrep ? { [e.cat]: catLabel(e.cat) } : (e.cat in cats ? cats : { ...cats, [e.cat]: catLabel(e.cat) });
   openSheet(`<h3>${isNew ? "Novo gasto" : readonly ? "Gasto" : "Editar gasto"}</h3>
    <p class="muted" style="font-size:.85rem">${othersPrep ? `Gasto da preparação que ${esc(rname(e.rider))} escolheu exibir.` : prep ? "🔒 Meus gastos: só você vê, a menos que ligue “Exibir para o grupo”." : "Gasto da viagem: os dois veem."}</p>
@@ -492,7 +493,9 @@ function expForm(e, kind) {
     <label class="field"><span>Descrição</span><input id="eDesc" value="${esc(e.desc)}" placeholder="${prep ? "Ex.: pneu dianteiro, kit relação, luvas" : "Ex.: posto em Salgueiro, pousada, almoço"}"></label>
     <div id="fuelBox" class="grid2" ${e.cat === "combustivel" ? "" : "hidden"}>
       <label class="field"><span>Litros</span><input id="eL" inputmode="decimal" value="${e.liters ?? ""}"></label>
-      <label class="field"><span>R$ por litro</span><input id="ePpl" inputmode="decimal" value="${e.ppl ?? ""}"></label></div>
+      <label class="field"><span>R$ por litro</span><input id="ePpl" inputmode="decimal" value="${e.ppl ?? ""}"></label>
+      ${prep ? "" : `<label class="field"><span>Hodômetro (km)</span><input id="eOdo" inputmode="numeric" value="${fuelLog?.odo ?? ""}" placeholder="total da moto"><small>Opcional: entra no Diário de bordo e calcula o consumo real</small></label>
+      <label class="check" style="align-self:center"><input type="checkbox" id="eFull" ${fuelLog?.cheio === false ? "" : "checked"}> Tanque cheio</label>`}</div>
     <div class="grid2"><label class="field"><span>Valor (R$)</span><input id="eAmt" inputmode="decimal" value="${e.amount ?? ""}" required></label>
     <label class="field"><span>Data</span><input id="eDate" type="date" value="${e.date || ""}"></label></div>
     ${prep ? (othersPrep ? "" : `<label class="check"><input type="checkbox" id="eShow" ${e.show ? "checked" : ""}> Exibir para o grupo <small class="muted" style="font-weight:500">(aparece em Gastos da viagem)</small></label>`)
@@ -528,14 +531,22 @@ function expForm(e, kind) {
         // cópia pública só com o que o dono decidiu mostrar
         if (vis) store.put("expenses", id, { ...data, rider: m, shared: false, fromPrep: true });
         else if (S.expenses?.[id]?.fromPrep) store.remove("expenses", id);
-      } else store.put("expenses", id, { ...data, rider: sh.querySelector("#eRider").value, shared: shared.checked });
+      } else {
+        const rider = sh.querySelector("#eRider").value, odo = catKey === "combustivel" ? parseNum(sh.querySelector("#eOdo")?.value) : null;
+        if (odo && data.liters && canEdit(rider)) { // abastecimento com hodômetro também vai para o Diário de bordo
+          const lid = e.fromLog || newId();
+          store.merge("riders/" + rider, { diario: { [lid]: { date: data.date, odo: Math.round(odo), litros: data.liters, ppl: data.ppl, cheio: !!sh.querySelector("#eFull")?.checked, local: data.desc.replace(/^Abastecimento( em)?\s*/i, ""), exp: id } } });
+          data.fromLog = lid;
+        } else if (e.fromLog) data.fromLog = e.fromLog;
+        store.put("expenses", id, { ...data, rider, shared: shared.checked });
+      }
       closeSheet(); toast(isNew ? "Gasto lançado" : "Gasto salvo");
     });
     const del = sh.querySelector("#eDel"); let armed = false;
     del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; }
       if (prep) { store.removePrep(e.id); if (S.expenses?.[e.id]?.fromPrep) store.remove("expenses", e.id); }
-      else store.remove("expenses", e.id);
-      closeSheet(); toast("Gasto excluído"); });
+      else { store.remove("expenses", e.id); if (e.fromLog && canEdit(e.rider)) store.merge("riders/" + e.rider, { diario: { [e.fromLog]: null } }); }
+      closeSheet(); toast(e.fromLog ? "Gasto excluído (e o abastecimento no Diário)" : "Gasto excluído"); });
   });
 }
 function openExpense(id, kind) {
@@ -1027,19 +1038,22 @@ const checkins = () => Object.entries(S.meta?.checkins || {}).map(([id, c]) => (
 const ckTime = at => { const d = new Date(at); return `${WD[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`; };
 const ckLine = c => `<li><span>${c.kind === "ok" ? "✅" : "📍"}</span><div><b>${esc(rname(c.rider))}</b> · ${c.kind === "ok" ? `chegou bem${c.place ? " em " + esc(c.place) : ""}` : "mandou a localização"} · <span class="muted">${ckTime(c.at)}</span>${c.lat != null ? ` · <a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" rel="noopener">ver no mapa</a>` : ""}</div></li>`;
 function todayDest() { const d = days().find(x => x.date === todayISO()); if (!d) return ""; return isRoad(d) && tripEnds(d)[1] ? cleanCity(tripEnds(d)[1]) : "Lençóis"; }
+// GPS primeiro; se falhar, tenta a localização aproximada (Wi-Fi/rede). Devolve { pos } ou { err }
 function getPos() {
-  return new Promise(res => { if (!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(p => res({ lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) }), () => res(null), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }); });
+  const one = hi => new Promise(res => navigator.geolocation.getCurrentPosition(p => res({ pos: { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) } }), er => res({ err: er.code }), { enableHighAccuracy: hi, timeout: hi ? 15000 : 10000, maximumAge: 120000 }));
+  if (!navigator.geolocation) return Promise.resolve({ err: 0 });
+  return one(true).then(r => r.pos || r.err === 1 ? r : one(false));
 }
+const POS_ERR = { 0: "Este aparelho não informa localização.", 1: "Localização bloqueada para o app. Libere em Configurações do celular → navegador (ou no cadeado da barra de endereço) e tente de novo.", 2: "Não deu para achar a posição agora (sem GPS ou sinal).", 3: "O GPS demorou demais para responder." };
 async function sendAlert(kind) {
   const m = me(); if (!m) return pickMe();
   toast("Pegando sua localização…");
-  const pos = await getPos(), now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`, place = kind === "ok" ? todayDest() : "";
+  const g = await getPos(), pos = g.pos || null, now = new Date(), hm = `${pad(now.getHours())}h${pad(now.getMinutes())}`, place = kind === "ok" ? todayDest() : "";
   const link = pos ? `\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}` : "";
-  const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `📍 ${rname(m)} aqui, às ${hm}.${link || "\n(localização indisponível agora)"}\n— Expedição Chapada`;
+  const text = kind === "ok" ? `✅ ${rname(m)}: cheguei bem${place ? " em " + place : ""}, às ${hm}.${link}\n— Expedição Chapada` : `▶ Localização de ${rname(m)}, às ${hm}:${link || "\n(sem localização agora)"}\n— Expedição Chapada`;
   const list = checkins(), keep = list.slice(49).reduce((o, c) => (o[c.id] = null, o), {});
   store.merge("meta/checkins", { ...keep, [newId()]: { rider: m, kind, at: Date.now(), lat: pos?.lat ?? null, lng: pos?.lng ?? null, place } });
-  if (!pos) toast("Sem localização: mandando só o aviso");
+  if (!pos) { toast(POS_ERR[g.err] || POS_ERR[2]); await new Promise(r => setTimeout(r, 3500)); }
   location.href = waHref("", text);
 }
 function seguranca() {
@@ -1118,7 +1132,7 @@ function logForm(e) {
       <label class="field"><span>R$ por litro</span><input id="lP" inputmode="decimal" value="${e.ppl ?? ""}"></label></div>
       <label class="field"><span>Posto / cidade</span><input id="lLoc" value="${esc(e.local || "")}" placeholder="Ex.: Salgueiro"></label>
       <label class="check"><input type="checkbox" id="lC" ${e.cheio !== false ? "checked" : ""}> Tanque cheio</label>
-      ${isNew ? `<label class="check"><input type="checkbox" id="lE" checked> Lançar também em Gastos da viagem</label>` : ""}
+      ${isNew ? `<label class="check"><input type="checkbox" id="lE" checked> Lançar também em Gastos da viagem</label>` : e.exp && S.expenses?.[e.exp] ? `<p class="muted" style="font-size:.8rem">Ligado a um gasto da viagem: as mudanças aqui atualizam o gasto.</p>` : ""}
       <p class="err" id="lErr" hidden></p>
       <div class="actions">${isNew ? `<button type="button" class="btn" data-close="1">Cancelar</button>` : `<button type="button" class="btn danger" id="lDel">Excluir</button>`}<button class="btn primary">Salvar</button></div></form>`, sh => {
     sh.querySelector("#lgF").addEventListener("submit", ev => { ev.preventDefault();
@@ -1127,14 +1141,17 @@ function logForm(e) {
       if (!odo || !litros) { er.hidden = false; er.textContent = "Informe o hodômetro e os litros."; return; }
       const lid = isNew ? newId() : e.id;
       const data = { date: sh.querySelector("#lD").value, odo: Math.round(odo), litros, ppl, cheio: sh.querySelector("#lC").checked, local: sh.querySelector("#lLoc").value.trim() };
+      const expId = e.exp && S.expenses?.[e.exp] ? e.exp : (isNew && sh.querySelector("#lE")?.checked && ppl ? newId() : null);
+      if (expId) { data.exp = expId; const old = S.expenses?.[expId] || {};
+        store.put("expenses", expId, { ...old, cat: "combustivel", desc: "Abastecimento" + (data.local ? " em " + data.local : ""), amount: Math.round(litros * (ppl || 0) * 100) / 100,
+          date: data.date, liters: litros, ppl, created: old.created || Date.now(), rider: id, shared: old.shared || false, fromLog: lid }); }
       store.merge("riders/" + id, { diario: { [lid]: data } });
-      if (isNew && sh.querySelector("#lE")?.checked && ppl) store.put("expenses", newId(), { cat: "combustivel", desc: "Abastecimento" + (data.local ? " em " + data.local : ""), amount: Math.round(litros * ppl * 100) / 100,
-        date: data.date, liters: litros, ppl, created: Date.now(), rider: id, shared: false, fromLog: lid });
       closeSheet(); toast(isNew ? "Abastecimento anotado" : "Salvo");
     });
     const del = sh.querySelector("#lDel"); let armed = false;
     del && del.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; }
-      store.merge("riders/" + id, { diario: { [e.id]: null } }); closeSheet(); toast("Abastecimento excluído"); });
+      store.merge("riders/" + id, { diario: { [e.id]: null } }); if (e.exp && S.expenses?.[e.exp]) store.remove("expenses", e.exp);
+      closeSheet(); toast(e.exp ? "Abastecimento excluído (e o gasto ligado a ele)" : "Abastecimento excluído"); });
   });
 }
 

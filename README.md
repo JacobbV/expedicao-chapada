@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.13.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.13.1 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -246,7 +246,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.13.0** | 25/10/2026 | **Abastecimento na rota:** em cada dia de estrada, onde cada moto deve abastecer pela autonomia (20% de reserva), usando as cidades do caminho e os postos marcados no mapa, com aviso de trecho longo sem parada; aparece no dia, no painel Hoje e no roadbook. **Revisão das motos** (☰): itens a fazer e feitos por moto, com data, km, valor e opção de lançar em Meus gastos. **Modo pilotando** (☰ ou painel Hoje): tela grande com hora, próxima cidade, km até o destino e chegada, próximo abastecimento, tempo agora e botões de localização, Cheguei bem e 192; usa o GPS e mantém a tela acesa. Roadbook não corta mais na tela do celular |
+| **1.13.1** | 25/10/2026 | Gasto de **Combustível** ganhou hodômetro e tanque cheio: com o hodômetro, o abastecimento entra sozinho no Diário de bordo, e os dois ficam ligados (editar ou excluir um atualiza o outro). Localização: tenta o GPS e depois a posição aproximada, e explica o motivo quando não consegue (bloqueada, sem sinal, demora). Mensagem do WhatsApp sem o emoji que aparecia como “�” no PC |
+| 1.13.0 | 25/10/2026 | **Abastecimento na rota:** em cada dia de estrada, onde cada moto deve abastecer pela autonomia (20% de reserva), usando as cidades do caminho e os postos marcados no mapa, com aviso de trecho longo sem parada; aparece no dia, no painel Hoje e no roadbook. **Revisão das motos** (☰): itens a fazer e feitos por moto, com data, km, valor e opção de lançar em Meus gastos. **Modo pilotando** (☰ ou painel Hoje): tela grande com hora, próxima cidade, km até o destino e chegada, próximo abastecimento, tempo agora e botões de localização, Cheguei bem e 192; usa o GPS e mantém a tela acesa. Roadbook não corta mais na tela do celular |
 | 1.12.0 | 25/10/2026 | **Segurança** (☰ → Segurança): enviar minha localização e “Cheguei bem” pelo WhatsApp com link do mapa, registrados no app para o outro piloto; números úteis (192, 193, 191, 190); ficha de emergência de cada piloto (tipo sanguíneo, alergias, remédios, plano, contato, placa, assistência). **Diário de bordo** (☰ → Diário de bordo): hodômetro e litros a cada abastecida, consumo real entre tanques cheios, km por tanque, custo por km, opção de lançar em Gastos; o consumo real passa a valer nas contas do app. No painel Hoje: botões de localização e Cheguei bem e os avisos do dia |
 | 1.11.0 | 25/10/2026 | **Painel Hoje** no Início: o dia (ou a prévia do dia 1 antes da viagem) com tempo, saída e chegada estimada, paradas para abastecer de cada moto pela autonomia, pernoite, o que falta no seu checklist, atalhos para Tempo do dia, mapa e roadbook, e o dia seguinte |
 | 1.10.0 | 25/10/2026 | **Tempo mais completo:** semana em barras no topo do Roteiro com sugestão de troca de circuito em dia de chuva; faixa e avisos no cartão do dia; folha **Tempo do dia** com o tempo em cada cidade do caminho na hora que vocês passam, avisos (calor, chuva, pôr do sol, rajadas, UV), hora a hora, vento, UV, sol e chuva; antes da previsão, **clima típico dos últimos 5 anos**; média na estrada em Ajustes |
