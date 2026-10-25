@@ -61,6 +61,17 @@ service cloud.firestore {
     match /trips/{tripId}/meta/{id} {
       allow read, write: if membro();
     }
+    // Fotos por dia: os dois veem; cada um envia, edita e apaga as suas
+    match /trips/{tripId}/photos/{id} {
+      allow read: if membro();
+      allow create: if membro() && request.resource.data.rider == eu();
+      allow update, delete: if membro() && resource.data.rider == eu();
+    }
+    match /trips/{tripId}/photofull/{id} {
+      allow read: if membro();
+      allow create: if membro() && request.resource.data.rider == eu();
+      allow update, delete: if membro() && resource.data.rider == eu();
+    }
     // Meus gastos: cada conta lê e escreve só a própria área
     match /trips/{tripId}/private/{uid}/{document=**} {
       allow read, write: if membro() && request.auth.uid == uid;

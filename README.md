@@ -2,7 +2,7 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.13.1 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.14.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
@@ -36,6 +36,8 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Menu ☰ → Diário de bordo** | Cada abastecida com hodômetro, litros e preço. Calcula o **consumo real** entre dois tanques cheios, km por tanque e custo por km; o consumo real passa a ser usado na autonomia, nas paradas do painel Hoje e no combustível previsto |
 | **Menu ☰ → Modo pilotando** | Tela de letras grandes para olhar numa parada: hora, próxima cidade e distância, km até o destino e hora de chegada, onde abastecer, tempo agora e botões de localização, Cheguei bem e 192. Usa o GPS (sem GPS, estima pelo horário) e deixa a tela acesa |
 | **Menu ☰ → Revisão das motos** | O que fazer na moto antes da viagem e o que já foi feito, com data, km e valor; o custo pode ir para Meus gastos |
+| **Menu ☰ → Novidades** | O que o outro piloto lançou (gastos, avisos de localização, fotos) e lembretes da viagem; o número em vermelho no botão ☰ mostra quantas são novas |
+| **Menu ☰ → Resumo da expedição** | Números da viagem (km do roteiro e rodados, gastos, consumo real, parte de cada um, fotos), gastos por categoria, dia a dia com fotos e botão **Compartilhar** |
 | **Menu ☰ → Ajustes** | Aparência (Automático, Dia, Noite), preço da gasolina, média na estrada (para o tempo no caminho), fim das férias, backup, sincronização, sair da conta e versão do app |
 | **Menu ☰ → Aparência** | Atalho para trocar entre **Automático** (segue o celular), **☀ Dia** e **☾ Noite**. A escolha fica salva em cada aparelho |
 | **Menu ☰ → Sobre** | Quem somos, nossa história, objetivos e sonhos, sobre o app, **redes e contatos de cada piloto** (só aparecem os preenchidos) e créditos. Todos veem; os textos só o admin edita, e cada piloto edita os próprios contatos |
@@ -202,10 +204,11 @@ O projeto Firebase `expedicao-chapada` (plano grátis Spark) usa:
 - **Firestore** em `southamerica-east1`, com os dados em `trips/chapada2027` e subcoleções `riders`, `checklist`, `meta`, `expenses`, `lodging` e `points`.
 - **Regras:** o arquivo [`firestore.rules`](firestore.rules) é só um **modelo**, com e-mails falsos. A regra que vale é a publicada no console, com os e-mails reais. Não coloque e-mails reais neste repositório público.
 - **Gastos da preparação** ficam em `trips/chapada2027/private/<id da conta>/prep`. A regra deixa cada conta ler só a própria área, então nem o outro piloto consegue ver, mesmo mexendo no código.
+- **Fotos** ficam no próprio Firestore (o armazenamento de arquivos do Firebase exige plano pago): o app reduz cada foto para até ~500 KB, mais uma miniatura de ~20 KB. A cota grátis de 1 GB dá para centenas de fotos. As originais continuam no celular.
 - **Configuração do app web:** [`firebase-config.js`](firebase-config.js). A `apiKey` pode ficar pública, porque quem protege os dados são as regras.
 
-### Atualizar as regras (a partir da v1.8.0)
-A v1.8.0 liberou a edição em conjunto da viagem e manteve só o pessoal com o admin. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
+### Atualizar as regras (a partir da v1.14.0)
+A v1.14.0 acrescentou as **fotos** (`photos` com as miniaturas e `photofull` com a foto grande; cada um envia e apaga só as suas). A v1.8.0 liberou a edição em conjunto da viagem e manteve só o pessoal com o admin. Copie o conteúdo de `firestore.rules` e cole em **Firestore → Regras** no console. Na função `pilotos()`, troque os dois e-mails pelos reais. Cada e-mail aponta para o perfil (`'jaco'` ou `'kaique'`). Depois clique em **Publicar**. Enquanto o Kaique não tiver conta, pode deixar o e-mail dele como modelo.
 
 ### Adicionar um piloto
 1. **No app (admin):** Menu ☰ → Pilotos e motos → **+ Adicionar piloto**. Preencha nome, moto, consumo e tanque. O app mostra o **ID do perfil** (ex.: `joaopedro`).
@@ -246,7 +249,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.13.1** | 25/10/2026 | Gasto de **Combustível** ganhou hodômetro e tanque cheio: com o hodômetro, o abastecimento entra sozinho no Diário de bordo, e os dois ficam ligados (editar ou excluir um atualiza o outro). Localização: tenta o GPS e depois a posição aproximada, e explica o motivo quando não consegue (bloqueada, sem sinal, demora). Mensagem do WhatsApp sem o emoji que aparecia como “�” no PC |
+| **1.14.0** | 25/10/2026 | **Navegar no Google Maps ou no Waze** (aparece no CarPlay): em cada dia e no Modo pilotando, com a rota do dia e até 3 cidades do caminho como paradas; nos passeios, os pontos do circuito; no Modo pilotando sai da sua posição. **Fotos por dia** (reduzidas e guardadas no Firestore, com legenda, baixar e excluir). **Resumo da expedição** (☰): km, gastos, consumo real, parte de cada um, dia a dia com fotos e botão Compartilhar. **Exportar gastos** em planilha (.csv para Excel/Google Planilhas), nas duas abas. **Novidades** (☰): gastos, avisos e fotos do outro piloto e lembretes da viagem, com contador no botão do menu e aviso na tela quando chega algo novo. **Regras do Firestore novas** (fotos) |
+| 1.13.1 | 25/10/2026 | Gasto de **Combustível** ganhou hodômetro e tanque cheio: com o hodômetro, o abastecimento entra sozinho no Diário de bordo, e os dois ficam ligados (editar ou excluir um atualiza o outro). Localização: tenta o GPS e depois a posição aproximada, e explica o motivo quando não consegue (bloqueada, sem sinal, demora). Mensagem do WhatsApp sem o emoji que aparecia como “�” no PC |
 | 1.13.0 | 25/10/2026 | **Abastecimento na rota:** em cada dia de estrada, onde cada moto deve abastecer pela autonomia (20% de reserva), usando as cidades do caminho e os postos marcados no mapa, com aviso de trecho longo sem parada; aparece no dia, no painel Hoje e no roadbook. **Revisão das motos** (☰): itens a fazer e feitos por moto, com data, km, valor e opção de lançar em Meus gastos. **Modo pilotando** (☰ ou painel Hoje): tela grande com hora, próxima cidade, km até o destino e chegada, próximo abastecimento, tempo agora e botões de localização, Cheguei bem e 192; usa o GPS e mantém a tela acesa. Roadbook não corta mais na tela do celular |
 | 1.12.0 | 25/10/2026 | **Segurança** (☰ → Segurança): enviar minha localização e “Cheguei bem” pelo WhatsApp com link do mapa, registrados no app para o outro piloto; números úteis (192, 193, 191, 190); ficha de emergência de cada piloto (tipo sanguíneo, alergias, remédios, plano, contato, placa, assistência). **Diário de bordo** (☰ → Diário de bordo): hodômetro e litros a cada abastecida, consumo real entre tanques cheios, km por tanque, custo por km, opção de lançar em Gastos; o consumo real passa a valer nas contas do app. No painel Hoje: botões de localização e Cheguei bem e os avisos do dia |
 | 1.11.0 | 25/10/2026 | **Painel Hoje** no Início: o dia (ou a prévia do dia 1 antes da viagem) com tempo, saída e chegada estimada, paradas para abastecer de cada moto pela autonomia, pernoite, o que falta no seu checklist, atalhos para Tempo do dia, mapa e roadbook, e o dia seguinte |

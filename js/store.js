@@ -7,7 +7,7 @@ const LS_KEY = "expedicao-chapada-v1";
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
 
 function emptyState() {
-  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {}, points: {}, prep: {} };
+  return { trip: null, riders: {}, checklist: {}, pend: { done: {} }, expenses: {}, lodging: {}, points: {}, prep: {}, photos: {} };
 }
 function seedState() {
   const s = emptyState();
@@ -57,7 +57,7 @@ function localStore() {
       cb = onChange;
       try { state = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { state = null; }
       if (!state || !state.trip) { state = seedState(); persist(); }
-      state.prep ||= {};
+      state.prep ||= {}; state.photos ||= {};
       if (!state.trip.pointsSeeded) { state.points = { ...seedPoints(), ...(state.points || {}) }; state.trip.pointsSeeded = true; persist(); }
       addEventListener("online", () => { status.online = true; emit(); });
       addEventListener("offline", () => { status.online = false; emit(); });
@@ -69,6 +69,13 @@ function localStore() {
     // Preparação: no modo local fica só neste aparelho
     putPrep(id, data) { state.prep[id] = data; persist(); emit(); return Promise.resolve(); },
     removePrep(id) { delete state.prep[id]; persist(); emit(); return Promise.resolve(); },
+    // Fotos: miniatura no estado, foto grande em chave separada deste aparelho
+    putPhoto(id, meta, full) {
+      try { localStorage.setItem("photo:" + id, full); } catch (e) { return Promise.reject(new Error("Sem espaço neste aparelho para guardar a foto.")); }
+      state.photos[id] = meta; persist(); emit(); return Promise.resolve(); },
+    mergePhoto(id, patch) { state.photos[id] = { ...state.photos[id], ...patch }; persist(); emit(); return Promise.resolve(); },
+    getPhotoFull(id) { try { return Promise.resolve(localStorage.getItem("photo:" + id)); } catch (e) { return Promise.resolve(null); } },
+    removePhoto(id) { delete state.photos[id]; try { localStorage.removeItem("photo:" + id); } catch (e) {} persist(); emit(); return Promise.resolve(); },
     exportJSON() { return JSON.stringify(state, null, 2); },
     importJSON(txt) { const s = JSON.parse(txt); if (!s.trip) throw new Error("Arquivo sem dados da viagem"); state = s; persist(); emit(); },
     resetAll() { state = seedState(); persist(); emit(); },
@@ -133,6 +140,11 @@ function cloudStore() {
         emit();
       }, () => {}));
     }
+    // Fotos: só as miniaturas ficam ouvindo; a foto grande é baixada ao abrir
+    unsubs.push(fs.onSnapshot(fs.collection(db, ...base, "photos"), opt, qs => {
+      pendingBy.photos = qs.metadata.hasPendingWrites; status.photoError = "";
+      const map = {}; qs.forEach(d => { map[d.id] = d.data(); }); state.photos = map; emit();
+    }, e => { status.photoError = e.code === "permission-denied" ? "Fotos sem permissão: publique as regras novas do Firestore (README, versão 1.14.0)." : e.message; emit(); }));
     // Preparação: área privada de cada conta (trips/<viagem>/private/<uid>/prep)
     unsubs.push(fs.onSnapshot(fs.collection(db, ...base, "private", status.uid, "prep"), opt, qs => {
       pendingBy.prep = qs.metadata.hasPendingWrites; status.prepError = "";
@@ -172,6 +184,12 @@ function cloudStore() {
     remove(col, id) { return w(fs.deleteDoc(fs.doc(db, ...base, col, id))); },
     putPrep(id, data) { return w(fs.setDoc(fs.doc(db, ...base, "private", status.uid, "prep", id), data)); },
     removePrep(id) { return w(fs.deleteDoc(fs.doc(db, ...base, "private", status.uid, "prep", id))); },
+    putPhoto(id, meta, full) { const b = fs.writeBatch(db);
+      b.set(fs.doc(db, ...base, "photos", id), meta); b.set(fs.doc(db, ...base, "photofull", id), { rider: meta.rider, data: full });
+      return b.commit().catch(e => { throw new Error(e.code === "permission-denied" ? "Sem permissão para fotos: publique as regras novas do Firestore." : e.message); }); },
+    mergePhoto(id, patch) { return w(fs.setDoc(fs.doc(db, ...base, "photos", id), patch, { merge: true })); },
+    async getPhotoFull(id) { try { const d = await fs.getDoc(fs.doc(db, ...base, "photofull", id)); return d.exists() ? d.data().data : null; } catch (e) { return null; } },
+    removePhoto(id) { const b = fs.writeBatch(db); b.delete(fs.doc(db, ...base, "photos", id)); b.delete(fs.doc(db, ...base, "photofull", id)); return w(b.commit()); },
     exportJSON() { return JSON.stringify(state, null, 2); },
   };
 }

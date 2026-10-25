@@ -28,6 +28,7 @@ const diffDays = (a, b) => Math.round((Date.UTC(...b.split("-").map((x, i) => i 
 const parseNum = v => { if (v === "" || v == null) return null; const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : null; };
 
 function toast(msg) {
+  document.querySelectorAll(".toast").forEach(x => x.remove());
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t);
   setTimeout(() => t.remove(), Math.max(2200, msg.length * 60));
 }
@@ -135,7 +136,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook, seguranca, diario, revisao, pilotando };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook, seguranca, diario, revisao, pilotando, novidades, resumo };
 
 function render() {
   if (!S || !ST) return;
@@ -155,6 +156,7 @@ function render() {
   migrateLegacy();
   fillWx();
   fillFuel();
+  newsCheck();
   if (route === "pilotando") { startRide(); fillRide(); } else stopRide();
 }
 
@@ -308,6 +310,8 @@ function roteiro() {
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
+        ${isRoad(d) && tripEnds(d)[1] || allPoints().some(p => p.circ === d.circ && p.lat != null && p.id !== "pousada") ? `<div><div class="label">Navegar</div>${navBtns(d)}</div>` : ""}
+        ${dayPhotos(d)}
         <div class="row"><button class="btn sm " data-act="editDay" data-id="${d.id}">Editar dia</button><button class="btn sm " data-act="insDay" data-id="${d.id}">+ Inserir dia depois</button></div>
       </div></details>`;
   }).join("");
@@ -452,6 +456,7 @@ function gastos() {
       <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(trip))}</div><div class="k">pago por você na viagem</div></div>
       <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(prep.filter(e => e.show)))}</div><div class="k">exibido para o grupo</div></div></div>
     ${catBars(list)}
+    ${list.length ? `<div class="row"><button class="btn sm" data-act="exportCSV" data-v="prep">Exportar planilha</button></div>` : ""}
     <div class="stack">${list.length ? expRows(list, "mine") : `<div class="card"><p class="muted">Nada lançado ainda. Use “+ Gasto” para registrar revisão, peças, pneus, equipamento, bagagem…</p></div>`}</div>
     <button class="fab" data-act="newExp" data-kind="prep">+ Gasto</button>`;
   }
@@ -469,6 +474,7 @@ function gastos() {
   <div class="card"><h3>Acerto de contas</h3><p class="settle" style="margin-top:6px">${esc(settleText())}</p>
     ${st.total ? `<p class="muted" style="font-size:.85rem;margin-top:4px">Divididos: ${brl(st.total)} · ${brl(st.share)} para cada um</p>` : ""}</div>
   ${catBars(list)}
+  ${all.length ? `<div class="row"><button class="btn sm" data-act="exportCSV" data-v="trip">Exportar planilha</button></div>` : ""}
   <div class="stack">${list.length ? expRows(list, "trip") : `<div class="card"><p class="muted">Nenhum gasto da viagem ainda. Use “+ Gasto” para combustível, pousada, comida, pedágio, guia…</p></div>`}</div>
   <button class="fab" data-act="newExp" data-kind="trip">+ Gasto</button>`;
 }
@@ -591,6 +597,8 @@ const ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
   out:  '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
   shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
   ride: '<circle cx="12" cy="12" r="9"/><path d="M12 12l4-3M12 3v2M3 12h2M19 12h2"/>',
   fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 9h6"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
@@ -613,6 +621,8 @@ function openMenu() {
     <div class="mini-stats"><div><b>${left != null ? left : "—"}</b><small>${left != null ? (left === 1 ? "dia para a saída" : "dias para a saída") : "viagem em curso"}</small></div>
       <div><b class="dotline ${ST.mode === "local" ? "" : ST.error ? "err" : !ST.online ? "off" : "on"}">●</b><small>${sync}</small></div></div>
     <div class="mgroup"><div class="label">Viagem</div>
+      ${mi("#novidades", "bell", "Novidades", (() => { const n = events().filter(e => e.at > seenGet()).length; return n ? `<b class="newtag">${n} nova${n > 1 ? "s" : ""}</b>` : "em dia"; })())}
+      ${mi("#resumo", "star", "Resumo da expedição", `${photos().length} fotos`)}
       ${mi("#hospedagem", "hosp", "Hospedagem", `${conf}/3 confirmadas`)}
       ${mi("#pendencias", "pend", "Pendências", `${open} abertas`)}
       ${mi("#pilotos", "moto", "Pilotos e motos", `${riderIds().length} pilotos`)}
@@ -1264,7 +1274,8 @@ function pilotando() {
   return `<div class="ride">
     <div class="ride-top"><div><div class="ride-clock" id="rideClock">--h--</div><div class="ride-day">${wd(d.date)} ${fmtD(d.date)} · ${esc(d.title)}</div></div><a class="btn" href="#inicio">Sair</a></div>
     <div id="rideBody" class="ride-body"><p class="muted">Carregando…</p></div>
-    <div class="ride-btns"><button class="btn primary" data-act="sendLoc">📍 Localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button><a class="btn sos1" href="tel:192">📞 192</a></div>
+    <div class="ride-nav"><button class="btn primary" data-act="navG" data-id="${d.id}" data-here="1">🧭 Google Maps</button><button class="btn" data-act="navW" data-id="${d.id}" data-here="1">Waze</button></div>
+    <div class="ride-btns"><button class="btn" data-act="sendLoc">📍 Localização</button><button class="btn" data-act="sendOk">✅ Cheguei bem</button><a class="btn sos1" href="tel:192">📞 192</a></div>
     <p class="ride-note" id="rideGps">${navigator.geolocation ? "Procurando GPS…" : "GPS indisponível: posição estimada pelo horário."} A tela fica acesa enquanto este modo estiver aberto.</p>
   </div>`;
 }
@@ -1284,6 +1295,7 @@ async function fillRide() {
         if (!best || det < best.det) best = { det, km: a.km + (b.km - a.km) * da / Math.max(.1, da + db) }; }
       cur = best.km; }
     else { const t0 = toH(d.saida) ?? 6; cur = Math.max(0, Math.min(total, (nowH - t0) * avgSpeed())); }
+    rideCur = cur;
     const next = S2.find(s => s.km > cur + 1) || S2[S2.length - 1], left = Math.max(0, total - cur);
     const mf = P.riders.find(r => r.id === m), nf = mf && !mf.missing ? mf.stops.find(s => s.km > cur + 1) : null;
     body.innerHTML = `
@@ -1296,6 +1308,175 @@ async function fillRide() {
     const lst = ps.map(p => ({ p, km: ridePos ? distKm(ridePos, p) : null })).sort((a, b) => ridePos ? a.km - b.km : (a.p.order || 0) - (b.p.order || 0));
     body.innerHTML = `${wxTile}<div class="rt"><small>Pontos do dia</small><ul class="ride-list">${lst.map(o => `<li><a href="https://www.google.com/maps/dir/?api=1&destination=${o.p.lat},${o.p.lng}" target="_blank" rel="noopener">${esc(o.p.name)}</a><span>${o.km != null ? num(o.km, o.km < 10 ? 1 : 0) + " km" : ""}</span></li>`).join("") || "<li>Sem pontos marcados</li>"}</ul></div>`;
   }
+}
+
+/* ---------- NAVEGAR (Google Maps / Waze) ---------- */
+let rideCur = null; // km já rodados no dia, calculado no modo pilotando
+// Google Maps no celular aceita até 3 paradas: tira as que ficam mais perto da anterior
+const pickEven = (arr, n, start = 0) => { const a = [...arr]; while (a.length > n) { let k = 0, min = Infinity; a.forEach((x, i) => { const g = (x.km ?? i) - (i ? (a[i - 1].km ?? i - 1) : start); if (g < min) { min = g; k = i; } }); a.splice(k, 1); } return a; };
+async function navTargets(d, fromHere) {
+  if (isRoad(d) && tripEnds(d)[1]) {
+    const R = await routeStops(d); if (!R) return null;
+    let st = R.stops, origin = st[0];
+    if (fromHere && rideCur != null) { st = st.filter(s => s.km > rideCur + 1); origin = null; }
+    if (!st.length) st = [R.stops[R.stops.length - 1]];
+    const dest = st[st.length - 1], mid = st.slice(fromHere ? 0 : 1, -1);
+    return { origin, dest, wps: pickEven(mid, 3) };
+  }
+  const ps = allPoints().filter(p => p.circ === d.circ && p.lat != null && p.id !== "pousada").sort((a, b) => (a.order || 0) - (b.order || 0));
+  if (!ps.length) return null;
+  return { origin: null, dest: ps[ps.length - 1], wps: pickEven(ps.slice(0, -1), 3) };
+}
+const ll2 = p => `${p.lat},${p.lng}`;
+async function navOpen(d, app, fromHere) {
+  const T = await navTargets(d, fromHere); if (!T) { toast("Sem pontos com posição para navegar neste dia"); return; }
+  location.href = app === "waze" ? `https://waze.com/ul?ll=${ll2(T.dest)}&navigate=yes`
+    : `https://www.google.com/maps/dir/?api=1${T.origin ? "&origin=" + ll2(T.origin) : ""}&destination=${ll2(T.dest)}${T.wps.length ? "&waypoints=" + T.wps.map(ll2).join("%7C") : ""}&travelmode=driving`;
+}
+const navBtns = (d, here) => `<div class="navbtns"><button class="btn sm" data-act="navG" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>🧭 Google Maps</button><button class="btn sm" data-act="navW" data-id="${d.id}" ${here ? 'data-here="1"' : ""}>Waze</button></div>`;
+
+/* ---------- EXPORTAR GASTOS (planilha) ---------- */
+function downloadCSV(name, rows) {
+  const cell = v => { const s = v == null ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = "﻿" + rows.map(r => r.map(cell).join(";")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const money = v => (Number(v) || 0).toFixed(2).replace(".", ",");
+const brDate = iso => iso ? iso.split("-").reverse().join("/") : "";
+function exportGastos(kind) {
+  if (kind === "prep") {
+    const m = me() || riderIds()[0];
+    const list = [...prepExpenses().map(e => ({ ...e, _o: "Preparação" })), ...tripExpenses().filter(e => e.rider === m && !e.fromPrep).map(e => ({ ...e, _o: "Viagem" }))].sort(byDate).reverse();
+    downloadCSV(`meus-gastos-${slug(rname(m))}-${todayISO()}.csv`, [["Data", "Origem", "Categoria", "Descrição", "Valor (R$)", "Exibido para o grupo"],
+      ...list.map(e => [brDate(e.date), e._o, catLabel(e.cat), e.desc || "", money(e.amount), e._o === "Preparação" ? (e.show ? "sim" : "não") : ""])]);
+  } else {
+    const list = [...tripExpenses()].sort(byDate).reverse();
+    downloadCSV(`gastos-viagem-${todayISO()}.csv`, [["Data", "Quem pagou", "Categoria", "Descrição", "Valor (R$)", "Dividido", "Litros", "R$/L"],
+      ...list.map(e => [brDate(e.date), rname(e.rider), catLabel(e.cat), e.desc || "", money(e.amount), e.shared ? "sim" : "não", e.liters || "", e.ppl || ""])]);
+  }
+  toast("Planilha baixada (abre no Excel ou no Google Planilhas)");
+}
+
+/* ---------- FOTOS POR DIA ---------- */
+const photos = () => Object.entries(S.photos || {}).map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.created || 0) - (b.created || 0));
+async function compressImg(file, max, q) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    let qq = q, out = c.toDataURL("image/jpeg", qq);
+    while (out.length > 700000 && qq > .35) { qq -= .1; out = c.toDataURL("image/jpeg", qq); }
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+async function addPhotos(dayId, files) {
+  const m = me(); if (!m) return pickMe();
+  const d = days().find(x => x.id === dayId); const list = [...files].filter(f => f.type.startsWith("image/")).slice(0, 10);
+  let ok = 0;
+  for (const [i, f] of list.entries()) {
+    toast(`Preparando foto ${i + 1} de ${list.length}…`);
+    try {
+      const [full, thumb] = await Promise.all([compressImg(f, 1600, .78), compressImg(f, 360, .62)]);
+      await store.putPhoto(newId(), { rider: m, day: dayId, date: d?.date || todayISO(), thumb, caption: "", created: Date.now() }, full); ok++;
+    } catch (er) { toast(er.message || "Não deu para salvar a foto"); break; }
+  }
+  if (ok) toast(ok === 1 ? "Foto salva" : `${ok} fotos salvas`);
+}
+const thumbs = (list, limit) => list.slice(0, limit || 99).map(p => `<button type="button" class="ph" data-act="openPhoto" data-id="${p.id}"><img src="${p.thumb}" alt="${esc(p.caption || "Foto")}" loading="lazy"></button>`).join("");
+function dayPhotos(d) {
+  const list = photos().filter(p => p.day === d.id);
+  return `<div><div class="between"><div class="label">Fotos${list.length ? ` · ${list.length}` : ""}</div>
+    <label class="btn sm">+ Fotos<input type="file" accept="image/*" multiple hidden data-photo-day="${d.id}"></label></div>
+    ${list.length ? `<div class="phgrid">${thumbs(list)}</div>` : `<p class="muted" style="font-size:.82rem">Nenhuma foto deste dia ainda.</p>`}
+    ${ST.photoError ? `<p class="err" style="font-size:.8rem">${esc(ST.photoError)}</p>` : ""}</div>`;
+}
+function photoSheet(id) {
+  const p = S.photos?.[id]; if (!p) return;
+  const own = p.rider === me() || ST.mode === "local", d = days().find(x => x.id === p.day);
+  openSheet(`<div class="phview"><img id="phImg" src="${p.thumb}" alt=""></div>
+    <div class="muted" style="font-size:.82rem">${esc(rname(p.rider))} · ${d ? `${wd(d.date)} ${fmtD(d.date)} · ${esc(d.title)}` : ""}</div>
+    ${own ? `<label class="field"><span>Legenda</span><input id="phCap" value="${esc(p.caption || "")}" maxlength="140" placeholder="Ex.: Cachoeira da Fumaça"></label>` : p.caption ? `<p>${esc(p.caption)}</p>` : ""}
+    <div class="actions">${own ? `<button type="button" class="btn danger" id="phDel">Excluir</button>` : ""}<a class="btn" id="phDl" download="foto-${id}.jpg" href="${p.thumb}">Baixar</a>${own ? `<button type="button" class="btn primary" id="phSave">Salvar</button>` : `<button class="btn" data-close="1">Fechar</button>`}</div>`, async sh => {
+    const full = await store.getPhotoFull(id);
+    if (full && sh.isConnected) { sh.querySelector("#phImg").src = full; sh.querySelector("#phDl").href = full; }
+    sh.querySelector("#phSave")?.addEventListener("click", () => { store.mergePhoto(id, { caption: sh.querySelector("#phCap").value.trim() }); closeSheet(); toast("Legenda salva"); });
+    const del = sh.querySelector("#phDel"); let armed = false;
+    del?.addEventListener("click", () => { if (!armed) { armed = true; del.textContent = "Toque de novo para excluir"; return; } store.removePhoto(id); closeSheet(); toast("Foto excluída"); });
+  });
+}
+
+/* ---------- NOVIDADES (avisos dentro do app) ---------- */
+const seenGet = () => { try { const v = +localStorage.getItem("seenAt"); if (v) return v; localStorage.setItem("seenAt", String(Date.now())); } catch (e) {} return Date.now(); };
+const seenSet = () => { try { localStorage.setItem("seenAt", String(Date.now())); } catch (e) {} };
+function events() {
+  const m = me(), out = [], now = Date.now();
+  tripExpenses().filter(e => e.rider !== m && e.created).forEach(e => out.push({ at: e.created, ic: "💸", tx: `${rname(e.rider)} lançou ${catLabel(e.cat)}${e.desc ? ` (${e.desc})` : ""}: ${brl(e.amount)}${e.shared ? " · dividido" : ""}`, href: "#gastos" }));
+  checkins().filter(c => c.rider !== m).forEach(c => out.push({ at: c.at, ic: c.kind === "ok" ? "✅" : "📍", tx: `${rname(c.rider)} ${c.kind === "ok" ? `chegou bem${c.place ? " em " + c.place : ""}` : "mandou a localização"}`, href: "#seguranca" }));
+  photos().filter(p => p.rider !== m).forEach(p => out.push({ at: p.created, ic: "📷", tx: `${rname(p.rider)} adicionou uma foto${p.caption ? `: ${p.caption}` : ""}`, href: "#resumo" }));
+  const ds = days(); if (ds.length) {
+    const st = parseISO(ds[0].date).getTime();
+    [[30, "📅", "Falta 1 mês para a saída"], [7, "📅", "Falta 1 semana para a saída. Hora de fechar o checklist"], [1, "🏍️", "Amanhã é dia de estrada!"]].forEach(([n, ic, tx]) => out.push({ at: st - n * 864e5 + 8 * 3600e3, ic, tx, href: "#inicio" }));
+    out.push({ at: st - 15 * 864e5 + 7 * 3600e3, ic: "🌦️", tx: "A previsão do tempo do 1º dia saiu: confira no Roteiro", href: "#roteiro" });
+  }
+  return out.filter(e => e.at && e.at <= now).sort((a, b) => b.at - a.at);
+}
+let toastedAt = Date.now();
+function newsCheck() {
+  const ev = events(), seen = seenGet(), fresh = ev.filter(e => e.at > seen).length;
+  const btn = $("#menuBtn"); if (btn) { let b = btn.querySelector(".badge"); if (fresh) { if (!b) { b = document.createElement("span"); b.className = "badge"; btn.appendChild(b); } b.textContent = fresh > 9 ? "9+" : fresh; } else b?.remove(); }
+  const nw = ev.find(e => e.at > toastedAt && e.at > Date.now() - 120000 && e.ic !== "📅");
+  if (nw) { toastedAt = nw.at; toast(`${nw.ic} ${nw.tx}`); }
+  return fresh;
+}
+function novidades() {
+  const seen = seenGet(), ev = events().slice(0, 60);
+  setTimeout(() => { seenSet(); newsCheck(); }, 800);
+  const fmt = at => { const d = new Date(at); return `${WD[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`; };
+  return `${backLink}<h2>Novidades</h2>
+  <p class="muted" style="font-size:.85rem">O que o outro piloto fez no app (gastos, avisos, fotos) e os lembretes da viagem. As novas desde a última vez que você olhou ficam destacadas.</p>
+  <div class="card">${ev.length ? `<ul class="news">${ev.map(e => `<li class="${e.at > seen ? "new" : ""}"><span>${e.ic}</span><a href="${e.href}">${esc(e.tx)}</a><small>${fmt(e.at)}</small></li>`).join("")}</ul>` : `<p class="muted">Nada por aqui ainda.</p>`}</div>`;
+}
+
+/* ---------- RESUMO DA EXPEDIÇÃO ---------- */
+function resumo() {
+  const ds = days(), ids = riderIds(), ex = tripExpenses(), ph = photos();
+  const first = ds[0], last = ds[ds.length - 1];
+  const kmReal = ids.map(id => ({ id, st: logStats(id) }));
+  const kmR = Math.max(0, ...kmReal.map(o => o.st.km));
+  const fuelL = ex.filter(e => e.cat === "combustivel").reduce((s, e) => s + (Number(e.liters) || 0), 0);
+  const ck = checkins().filter(c => c.kind === "ok").length;
+  return `${backLink}<div class="between"><h2>Resumo</h2><button class="btn sm primary" data-act="shareSum">Compartilhar</button></div>
+  <div class="hero"><div class="label" style="color:var(--asphalt-muted)">${esc(S.trip.name || "Expedição")}</div>
+    <div class="big" style="font-size:2.2rem">${first ? `${fmtD(first.date)} → ${fmtD(last.date)}` : ""}</div>
+    <div class="sub">${ds.length} dias · ${ids.map(id => `${esc(rname(id))} (${esc(S.riders[id].moto || "")})`).join(" e ")}</div></div>
+  <div class="stats">
+    <div class="stat"><div class="v">${num(totalKm())}</div><div class="k">km no roteiro</div></div>
+    <div class="stat"><div class="v">${kmR ? num(kmR) : "—"}</div><div class="k">km rodados (diário de bordo)</div></div>
+    <div class="stat"><div class="v" style="font-size:1.5rem">${brl(sumAmt(ex))}</div><div class="k">gastos da viagem</div></div>
+    <div class="stat"><div class="v">${num(fuelL)} L</div><div class="k">combustível lançado</div></div>
+    ${kmReal.map(o => `<div class="stat"><div class="v">${o.st.real ? num(o.st.real, 1) : "—"}</div><div class="k">km/L real · ${esc(rname(o.id))}</div></div>`).join("")}
+    ${ids.map(id => `<div class="stat"><div class="v" style="font-size:1.5rem">${brl(myTripCost(id))}</div><div class="k">parte de ${esc(rname(id))}</div></div>`).join("")}
+    <div class="stat"><div class="v">${ph.length}</div><div class="k">fotos</div></div>
+    <div class="stat"><div class="v">${ck}</div><div class="k">“cheguei bem”</div></div>
+  </div>
+  ${catBars(ex)}
+  <div class="card stack"><h3>Dia a dia</h3>${ds.map((d, i) => { const p = ph.filter(x => x.day === d.id), c = CIRCUITS[d.circ] || CIRCUITS.estrada;
+    return `<div class="sumday" style="--c:${c.color}"><div><b>Dia ${i + 1} · ${wd(d.date)} ${fmtD(d.date)}</b><span>${esc(d.title)}${d.km ? ` · ${num(d.km)} km` : ""}</span></div>${p.length ? `<div class="phgrid sm">${thumbs(p, 4)}</div>` : ""}</div>`; }).join("")}</div>
+  ${ph.length ? `<div class="card stack"><h3>Fotos</h3><div class="phgrid">${thumbs(ph)}</div></div>` : ""}
+  <div class="row"><button class="btn sm" data-act="exportCSV" data-v="trip">Exportar gastos (planilha)</button></div>`;
+}
+function shareSummary() {
+  const ds = days(), ex = tripExpenses();
+  const kmR = Math.max(0, ...riderIds().map(id => logStats(id).km));
+  const lines = [`🏍️ ${S.trip.name || "Expedição Chapada"}`, ds.length ? `${fmtD(ds[0].date)} a ${fmtD(ds[ds.length - 1].date)} · ${ds.length} dias` : "",
+    `${num(kmR || totalKm())} km ${kmR ? "rodados" : "no roteiro"}`, ...riderIds().map(id => { const r = logStats(id).real; return `${rname(id)} · ${S.riders[id].moto || ""}${r ? ` · ${num(r, 1)} km/L` : ""}`; }),
+    `Gastos da viagem: ${brl(sumAmt(ex))}`, `${photos().length} fotos`, "", "https://jacobbv.github.io/expedicao-chapada/"].filter(x => x !== null);
+  const text = lines.join("\n");
+  if (navigator.share) navigator.share({ title: S.trip.name || "Expedição Chapada", text }).catch(() => {});
+  else location.href = waHref("", text);
 }
 
 /* ---------- TEMPO ---------- */
@@ -1530,6 +1711,10 @@ $("#view").addEventListener("click", e => {
   if (act === "editDay") dayForm(S.trip.days.find(d => d.id === id));
   else if (act === "shiftDates") shiftForm();
   else if (act === "sendLoc") sendAlert("loc");
+  else if (act === "navG" || act === "navW") { const d = days().find(x => x.id === id); if (d) navOpen(d, act === "navW" ? "waze" : "google", !!b.dataset.here); }
+  else if (act === "exportCSV") exportGastos(b.dataset.v);
+  else if (act === "openPhoto") photoSheet(id);
+  else if (act === "shareSum") shareSummary();
   else if (act === "newRev") { if (canEdit(viewRider)) revForm(null); }
   else if (act === "addRev") { if (canEdit(viewRider)) revForm({ item: b.dataset.v }); }
   else if (act === "editRev") { if (!canEdit(viewRider)) return; const x = S.riders[viewRider]?.revisao?.[id]; if (x) revForm({ id, ...x }); }
@@ -1585,6 +1770,7 @@ $("#view").addEventListener("toggle", e => { const d = e.target.closest?.("[data
 $("#view").addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.act === "pd") store.merge("meta/pend", { done: { [t.dataset.id]: t.checked ? true : null } });
+  if (t.dataset.photoDay && t.files.length) { addPhotos(t.dataset.photoDay, t.files); t.value = ""; }
   if (t.id === "impFile" && t.files[0]) { const r = new FileReader(); r.onload = () => { try { store.importJSON(r.result); toast("Backup restaurado"); } catch (er) { toast("Arquivo inválido: " + er.message); } }; r.readAsText(t.files[0]); }
 });
 $("#view").addEventListener("submit", e => {
