@@ -2,11 +2,13 @@
 
 PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia a dia, **mapa com os pontos de cada circuito**, checklist por piloto, gastos com acerto de contas, hospedagem e pendências. O app funciona **sem internet** e sincroniza entre os celulares pelo Firebase quando o sinal volta.
 
-**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.8.0 ([histórico](#histórico-de-versões))
+**App:** <https://jacobbv.github.io/expedicao-chapada/> · **Versão atual:** 1.9.0 ([histórico](#histórico-de-versões))
 
 ## Sumário
 - [O que tem](#o-que-tem)
 - [Mapa](#mapa)
+- [Roadbook](#roadbook)
+- [Tempo](#tempo)
 - [Gastos](#gastos)
 - [Checklist](#checklist)
 - [Quem pode mexer em quê](#quem-pode-mexer-em-quê)
@@ -25,6 +27,8 @@ PWA da viagem de moto **Catolé do Rocha-PB → Lençóis-BA**. Tem roteiro dia 
 | **Mapa** | Pins com a cor do circuito, o ícone do tipo de lugar e o número da ordem no dia. Tocar no pin mostra detalhes, distância de Lençóis e o botão **Abrir no Google Maps**. Também dá para editar, arrastar o pin, criar ponto novo, filtrar por circuito e **ligar os pontos** para ver os km de cada circuito |
 | **Checklist** | Um por piloto. Cada um edita o seu e vê o do outro. Tem uma legenda explicando cada status: **Pronto**, **Providenciar**, **Revisar**, **Não preciso** e **Avaliar** |
 | **Gastos** | Duas abas: **Gastos da viagem** (os dois veem; cada gasto pode ser dividido) e **Meus gastos** (privada: o total de tudo o que você gastou). Detalhes em [Gastos](#gastos) |
+| **Menu ☰** | Topo com o seu perfil (nome, moto, admin), dias para a saída e status da sincronização; grupos **Viagem** e **App** com ícones; aparência; **Sair da conta** |
+| **Menu ☰ → Roadbook** | Um cartão 10 × 15 cm por dia para imprimir ou salvar em PDF |
 | **Menu ☰ → Hospedagem** | Opções para Petrolina (ida), Lençóis e Petrolina (volta). As datas e noites acompanham o roteiro |
 | **Menu ☰ → Pendências** | Lista por prioridade, com pendências próprias |
 | **Menu ☰ → Pilotos** | Consumo e tanque de cada moto (usados na autonomia e no combustível), redes e contatos de cada um e, para o admin, **+ Adicionar piloto** |
@@ -83,6 +87,30 @@ As coordenadas iniciais foram conferidas em fontes públicas, e a ficha de cada 
 | Cachoeira do Riachinho | Outdooractive |
 | Gruta da Lapa Doce, Fazenda Pratinha | Showcaves.com |
 | **Sem posição ainda:** Mirante de Lençóis, Povoado do Remanso, embarque no Marimbus, piscinas do Rio Roncador | Marcar no app quando confirmar |
+
+## Roadbook
+
+Em **Menu ☰ → Roadbook** (ou no botão **Roadbook 10×15** do Roteiro) o app monta **um cartão por dia**, no tamanho 10 × 15 cm:
+
+- Dia, data e título, com a faixa na cor do circuito.
+- Horário de saída, km de moto e tempo previsto (quando já houver previsão).
+- **Caminho** cidade a cidade (dias de estrada).
+- **Pontos** do circuito na ordem, com a distância em linha reta da pousada.
+- Observação do dia e **pernoite** (a hospedagem confirmada ou escolhida daquela etapa).
+
+O botão **Imprimir / salvar PDF** abre a impressão do celular ou do computador: escolha **Salvar como PDF** para guardar, ou imprima. Cada cartão sai numa página de 10 × 15 cm. Como o roadbook é gerado na hora, ele sempre acompanha o roteiro atual. Gere de novo depois de mudar algo.
+
+## Tempo
+
+Cada dia do **Roteiro** mostra o tempo do lugar daquele dia (cidade de destino nos dias de estrada; Lençóis, Pai Inácio, Capão ou Lapa Doce nos passeios), usando o serviço gratuito **Open-Meteo**:
+
+| Quando | O que aparece |
+|---|---|
+| Até 15 dias antes | **Previsão**: céu, máxima, mínima e chuva em mm (também no resumo do dia e no roadbook) |
+| Mais de 15 dias antes | Quando a previsão começa e **como estava o tempo no mesmo dia do ano anterior**, como referência |
+| Dia que já passou | Como foi o tempo naquele dia |
+
+O resultado fica guardado no celular: a previsão é renovada a cada 3 horas com internet, e sem sinal aparece a última que foi baixada.
 
 ## Gastos
 
@@ -190,6 +218,7 @@ js/version.js         versão do app (troque a cada publicação)
 js/data.js            dados-base: roteiro, circuitos, pontos do mapa, checklist, categorias de gasto, pendências
 js/store.js           armazenamento: modo local ou Firebase com cache offline
 js/map.js             mapa (Leaflet + OpenStreetMap) e desenho dos pins
+js/weather.js         tempo por dia (Open-Meteo)
 js/app.js             telas e interações
 firebase-config.js    configuração do Firebase (null = modo local)
 firestore.rules       modelo das regras do Firestore
@@ -202,7 +231,8 @@ icons/                ícones
 
 | Versão | Data | O que mudou |
 |---|---|---|
-| **1.8.0** | 24/10/2026 | **Edição em conjunto**: o Kaique passa a editar roteiro, mapa, hospedagem, pendências, gasolina e os textos Quem somos, Nossa história e Objetivos; continuam só do admin as férias, “Sobre o app” e adicionar/remover pilotos. O aviso de férias aparece só para o admin; os outros veem o prazo da viagem e o motivo. Regras do Firestore atualizadas |
+| **1.9.0** | 24/10/2026 | **Menu novo** (perfil no topo, dias para a saída, sincronização, grupos com ícones e Sair da conta); **Roadbook 10 × 15 cm** com um cartão por dia para imprimir ou salvar em PDF; **tempo por dia** no Roteiro (previsão até 15 dias; antes disso, o mesmo dia do ano anterior como referência) |
+| 1.8.0 | 24/10/2026 | **Edição em conjunto**: o Kaique passa a editar roteiro, mapa, hospedagem, pendências, gasolina e os textos Quem somos, Nossa história e Objetivos; continuam só do admin as férias, “Sobre o app” e adicionar/remover pilotos. O aviso de férias aparece só para o admin; os outros veem o prazo da viagem e o motivo. Regras do Firestore atualizadas |
 | 1.7.1 | 24/10/2026 | Opção **+ Nova categoria…** separada do “Outros”, com o campo aparecendo só quando é escolhida; corrigidos campos que apareciam sem precisar (litros fora do combustível) |
 | 1.7.0 | 24/10/2026 | **Categorias iguais nas duas abas** de gastos, com Equipamentos e Equipamentos de proteção separados e **Medicamentos** novo; em **Outros** dá para criar uma categoria, que fica salva para os próximos gastos; nomes antigos de categoria são convertidos sozinhos |
 | 1.6.1 | 24/10/2026 | Tela de login mais limpa (sem texto técnico), com uma linha sobre o app, **Esqueci minha senha** (o Firebase manda o link por e-mail) e “Criado por Jacó · GitHub” no rodapé |

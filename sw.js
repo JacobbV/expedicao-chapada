@@ -8,7 +8,7 @@ const TILES = "tiles-v1";
 const MAX_TILES = 3000;
 const FILES = [
   "./", "./index.html", "./manifest.webmanifest", "./firebase-config.js",
-  "./css/app.css", "./js/app.js", "./js/store.js", "./js/data.js", "./js/map.js", "./js/version.js",
+  "./css/app.css", "./js/app.js", "./js/store.js", "./js/data.js", "./js/map.js", "./js/weather.js", "./js/version.js",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
 ];
 

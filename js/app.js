@@ -1,6 +1,7 @@
 import { CIRCUITS, CHECKLIST, STATUS, PEND, ETAPAS, CATS, CAT_ALIAS, LEGACY_PREP, PTYPES, baseStatus, addDays } from "./data.js";
 import { createStore, newId } from "./store.js";
 import { ensureLeaflet, MapView, pinHTML, distKm } from "./map.js";
+import { wxInfo, wxPlan, wxCached, wxFetch } from "./weather.js";
 
 const store = createStore();
 let S = null, ST = null;
@@ -134,7 +135,7 @@ function pickMe(force) {
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else { route = r; render(); } }
 addEventListener("hashchange", () => { route = (location.hash.slice(1) || "inicio"); render(); scrollTo(0, 0); });
 
-const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre };
+const VIEWS = { inicio, roteiro, mapa, checklist, gastos, mais, hospedagem, pendencias, pilotos, ajustes, sobre, roadbook };
 
 function render() {
   if (!S || !ST) return;
@@ -151,6 +152,7 @@ function render() {
   renderTop();
   if (!me() && !$("#layer").innerHTML) pickMe(true);
   migrateLegacy();
+  fillWx();
 }
 
 /* ---------- login (modo nuvem) ---------- */
@@ -249,9 +251,10 @@ function roteiro() {
     return `<details class="day${d.date === t ? " today" : ""}" style="--c:${c.color}" data-day="${d.id}" ${openDays.has(d.id) ? "open" : ""}>
       <summary><div class="dnum">${parseISO(d.date).getDate()}<small>${wd(d.date)}</small></div>
         <div style="min-width:0"><div class="dt">${esc(d.title)}</div><div class="dm">${esc(c.short || c.name)}${d.saida ? " · saída " + d.saida.replace(":", "h") : ""}</div></div>
-        <div class="dk">${d.km ? num(d.km) + " km" : ""}</div></summary>
+        <div class="dk">${d.km ? num(d.km) + " km" : ""}<span class="wx" data-wx="${d.id}" data-mode="chip"></span></div></summary>
       <div class="body">
         ${d.via ? `<div><div class="label">Caminho</div><div style="font-size:.9rem">${esc(d.via)}</div></div>` : ""}
+        <div><div class="label">Tempo</div><div class="wxline" data-wx="${d.id}" data-mode="line"><span class="muted">Carregando…</span></div></div>
         ${d.notes ? `<p class="note">${esc(d.notes)}</p>` : ""}
         ${circBlock}
         ${dayPoints(d)}
@@ -262,7 +265,7 @@ function roteiro() {
   return `
   <div class="between"><h2>Roteiro</h2><span class="muted num">${num(totalKm())} km</span></div>
   <div class="row"><span class="muted">${first ? `${wd(first.date)} ${fmtD(first.date)} → ${wd(last.date)} ${fmtD(last.date)} · ${ds.length} dias` : ""}</span>
-    <button class="btn sm " data-act="shiftDates">Mudar data de saída</button></div>
+    <button class="btn sm " data-act="shiftDates">Mudar data de saída</button><a class="btn sm" href="#roadbook">Roadbook 10×15</a></div>
   <p class="note">Distâncias de estrada e dos circuitos são estimativas até a validação por GPS. A ordem dos circuitos pode mudar conforme a chuva: edite o dia e troque o circuito. Inserir ou remover um dia empurra as datas seguintes.</p>
   <div class="stack">${cards}</div>
   <button class="btn block " data-act="addDay">+ Adicionar dia de folga</button>`;
@@ -517,22 +520,48 @@ function mais() {
     <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a></div>`;
 }
 const backLink = `<button class="back" type="button" data-act="openMenu">← Menu</button>`;
+const ICON = {
+  hosp: '<path d="M3 20V8l9-5 9 5v12"/><path d="M9 20v-6h6v6"/>',
+  pend: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+  moto: '<circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/><path d="M6 16l4-7h4l4 7M10 9l-1-3H7"/>',
+  book: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+  out:  '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
+};
+const mi = (href, icon, label, extra) => `<a href="${href}" class="mitem"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[icon]}</svg><span>${label}</span>${extra ? `<small>${extra}</small>` : ""}</a>`;
 function openMenu() {
   const conf = Object.values(S.lodging || {}).filter(l => l.status === "confirmada").length;
   const open = PEND.length + Object.keys(S.pend?.custom || {}).length - Object.keys(S.pend?.done || {}).length;
+  const m = me(), r = S.riders?.[m] || {};
+  const ds = days(), t = todayISO(), start = ds[0]?.date;
+  const left = start && t < start ? diffDays(t, start) : null;
+  const sync = ST.mode === "local" ? "Modo local" : ST.error ? "Erro de sincronização" : !ST.online ? (ST.pending ? "Offline · na fila" : "Offline") : ST.pending ? "Enviando…" : "Sincronizado";
   $("#layer").innerHTML = `<div class="drawer-bg" data-close="1"><nav class="drawer" aria-label="Menu">
-    <div class="between"><h3>Menu</h3><button class="x" data-close="1" aria-label="Fechar">×</button></div>
-    <div class="menu">
-      <a href="#hospedagem">Hospedagem <span class="muted">${conf}/3 confirmadas</span></a>
-      <a href="#pendencias">Pendências <span class="muted">${open} abertas</span></a>
-      <a href="#pilotos">Pilotos e motos <span class="muted">consumo e autonomia</span></a>
-      <a href="#ajustes">Ajustes e sincronização <span class="muted">${ST.mode === "local" ? "modo local" : esc(ST.user || "")}</span></a>
-      <a href="#sobre">Sobre <span class="muted">versão ${esc(self.APP_VERSION || "?")}</span></a>
-    </div>
-    <div class="stack" style="gap:6px"><div class="label">Aparência</div>${themeSeg()}</div>
-    <p class="muted" style="font-size:.8rem">© 2026 ${esc(about().author)}</p></nav></div>`;
+    <div class="between"><span class="label">Menu</span><button class="x" data-close="1" aria-label="Fechar">×</button></div>
+    <div class="me-card"><div class="avatar">${esc((r.name || "?").slice(0, 1))}</div>
+      <div style="min-width:0"><b>${esc(r.name || "Sem perfil")}</b>${isAdmin() && ST.mode === "cloud" ? ` <span class="chip s-est">admin</span>` : ""}
+      <small>${esc(r.moto || "")}</small>${ST.mode === "cloud" && ST.user ? `<small>${esc(ST.user)}</small>` : ""}</div></div>
+    <div class="mini-stats"><div><b>${left != null ? left : "—"}</b><small>${left != null ? (left === 1 ? "dia para a saída" : "dias para a saída") : "viagem em curso"}</small></div>
+      <div><b class="dotline ${ST.mode === "local" ? "" : ST.error ? "err" : !ST.online ? "off" : "on"}">●</b><small>${sync}</small></div></div>
+    <div class="mgroup"><div class="label">Viagem</div>
+      ${mi("#hospedagem", "hosp", "Hospedagem", `${conf}/3 confirmadas`)}
+      ${mi("#pendencias", "pend", "Pendências", `${open} abertas`)}
+      ${mi("#pilotos", "moto", "Pilotos e motos", `${riderIds().length} pilotos`)}
+      ${mi("#roadbook", "book", "Roadbook", "10×15 · PDF")}</div>
+    <div class="mgroup"><div class="label">App</div>
+      ${mi("#ajustes", "gear", "Ajustes", "gasolina e backup")}
+      ${mi("#sobre", "info", "Sobre", `versão ${esc(self.APP_VERSION || "?")}`)}</div>
+    <div class="mgroup"><div class="label">Aparência</div>${themeSeg()}</div>
+    ${ST.mode === "cloud" ? `<button class="mitem out" type="button" data-menu="logout"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON.out}</svg><span>Sair da conta</span></button>` : ""}
+    <p class="muted" style="font-size:.78rem">© 2026 ${esc(about().author)}</p></nav></div>`;
   const bg = $("#layer").firstElementChild;
-  bg.addEventListener("click", e => { if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = ""; });
+  let armed = false;
+  bg.addEventListener("click", e => {
+    const lo = e.target.closest("[data-menu=logout]");
+    if (lo) { if (!armed) { armed = true; lo.querySelector("span").textContent = "Toque de novo para sair"; return; } $("#layer").innerHTML = ""; store.signOut(); return; }
+    if (e.target.dataset.close || e.target.closest("a")) $("#layer").innerHTML = "";
+  });
 }
 $("#menuBtn").addEventListener("click", () => openMenu());
 
@@ -897,7 +926,7 @@ function sobre() {
       ${l ? `<div class="socials">${l}</div>` : `<p class="muted">Nenhum contato cadastrado.</p>`}
       ${canEdit(id) || isAdmin() ? `<button class="btn sm" data-act="editSocial" data-id="${id}" style="justify-self:start">${id === me() ? "Editar meus contatos" : "Editar contatos"}</button>` : ""}</div>`; }).join("")}
   <div class="card stack"><h3>Créditos</h3>
-    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
+    <p class="muted" style="font-size:.9rem">Mapa © colaboradores do OpenStreetMap · rotas pelo OSRM · tempo pelo Open-Meteo · sincronização pelo Firebase · hospedado no GitHub Pages.</p>
     <p class="muted" style="font-size:.9rem">Distâncias e tempos são estimativas até validação por GPS.</p></div>
   <p class="muted" style="font-size:.8rem">© 2026 ${esc(a.author)} · Expedição Chapada Diamantina</p>`;
 }
@@ -923,6 +952,73 @@ function storyForm() {
       const out = {}; STORY.forEach(([k]) => { if (!own(k)) out[k] = sh.querySelector("#st" + k).value.trim(); });
       store.merge("trip", { about: out }); closeSheet(); toast("Textos salvos"); });
   });
+}
+
+/* ---------- TEMPO ---------- */
+function dayLoc(d) {
+  const P = S.points || {};
+  const pt = id => P[id] && P[id].lat != null ? { lat: P[id].lat, lng: P[id].lng, name: id === "pousada" ? "Lençóis" : P[id].name } : null;
+  const byCirc = { chegada: "pousada", c1: "paiinacio", c2: "capao", c3: "pousada", planob: "lapadoce", folga: "pousada" };
+  if (d.circ !== "estrada") return pt(byCirc[d.circ] || "pousada") || pt("pousada");
+  const dest = (d.title.split("→").pop() || "").split("+")[0].trim().toLowerCase();
+  if (dest.startsWith("lençóis") || dest.startsWith("lencois")) return pt("pousada");
+  const hit = Object.entries(P).find(([, p]) => p.lat != null && p.name && p.name.toLowerCase().startsWith(dest.slice(0, 6)));
+  return hit ? { lat: hit[1].lat, lng: hit[1].lng, name: hit[1].name } : pt("pousada");
+}
+const tC = v => v == null ? "—" : Math.round(v) + "°";
+function wxHTML(v, plan, mode, loc) {
+  if (v === null) return mode === "line" ? `<span class="muted">Sem dados do tempo agora (precisa de internet).</span>` : "";
+  const w = wxInfo(v.code), rain = v.rain != null ? ` · ${num(v.rain, v.rain < 10 ? 1 : 0)} mm` : "";
+  const short = `${w.icon} ${tC(v.tmax)}/${tC(v.tmin)}`;
+  if (mode === "chip") return plan.kind === "forecast" ? short : "";
+  if (mode === "rb") return plan.kind === "forecast" ? `${short}${rain}` : `—`;
+  const [y, m, dd] = plan.date.split("-");
+  if (plan.kind === "forecast") return `<b>Previsão em ${esc(loc.name)}:</b> ${w.icon} ${w.text} · máx ${tC(v.tmax)} · mín ${tC(v.tmin)}${rain}`;
+  if (plan.kind === "past") return `<b>Como foi em ${esc(loc.name)}:</b> ${w.icon} ${w.text} · ${tC(v.tmax)}/${tC(v.tmin)}${rain}`;
+  return `<span class="muted">A previsão aparece a partir de ${fmtD(plan.availableFrom)}.</span><br><b>Mesmo dia em ${dd}/${m}/${y}, ${esc(loc.name)}:</b> ${w.icon} ${w.text} · ${tC(v.tmax)}/${tC(v.tmin)}${rain}`;
+}
+function fillWx() {
+  const els = document.querySelectorAll("[data-wx]"); if (!els.length) return;
+  const t = todayISO();
+  els.forEach(el => {
+    const d = (S.trip?.days || []).find(x => x.id === el.dataset.wx); if (!d) return;
+    const loc = dayLoc(d); if (!loc) { el.innerHTML = ""; return; }
+    const plan = wxPlan(d.date, t), mode = el.dataset.mode;
+    const c = wxCached(loc.lat, loc.lng, plan);
+    if (c !== undefined) { el.innerHTML = wxHTML(c, plan, mode, loc); return; }
+    wxFetch(loc.lat, loc.lng, plan).then(v => { if (el.isConnected) el.innerHTML = wxHTML(v, plan, mode, loc); });
+  });
+}
+
+/* ---------- ROADBOOK ---------- */
+function lodgingFor(i, ds) {
+  const retIdx = ds.findIndex((x, k) => k > 1 && x.circ === "estrada"); const r = retIdx > 1 ? retIdx : ds.length - 1;
+  const etapa = i === 0 ? "petrolina_ida" : i < r ? "lencois" : i === r ? "petrolina_volta" : null;
+  if (!etapa) return i === ds.length - 1 ? "Casa" : "—";
+  const ls = Object.values(S.lodging || {}).filter(l => l.etapa === etapa);
+  const pick = ls.find(l => l.status === "confirmada") || ls.find(l => l.status === "escolhida");
+  return pick ? pick.name + (pick.status === "confirmada" ? " ✓" : " (a reservar)") : "a definir";
+}
+function roadbook() {
+  const ds = days();
+  const cards = ds.map((d, i) => {
+    const c = CIRCUITS[d.circ] || CIRCUITS.estrada;
+    const via = (d.via || "").split("·").map(x => x.trim()).filter(Boolean);
+    const pts = allPoints().filter(p => p.circ === d.circ && p.id !== "pousada" && d.circ !== "estrada");
+    const note = d.notes || CIRCUITS[d.circ]?.nota || "";
+    return `<section class="rb" style="--c:${c.color}">
+      <header class="rb-head"><span>Dia ${i + 1} de ${ds.length}</span><span>${wd(d.date)} ${fmtD(d.date)}</span></header>
+      <h3 class="rb-title">${esc(d.title)}</h3>
+      <div class="rb-meta"><div><span>Saída</span><b>${d.saida ? d.saida.replace(":", "h") : "—"}</b></div><div><span>Moto</span><b>${d.km ? num(d.km) + " km" : "—"}</b></div><div><span>Tempo</span><b data-wx="${d.id}" data-mode="rb">—</b></div></div>
+      ${via.length > 1 ? `<div class="rb-sec"><span>Caminho</span><ol class="rb-via">${via.map(v => `<li>${esc(v)}</li>`).join("")}</ol></div>` : via.length ? `<div class="rb-sec"><span>Caminho</span><p>${esc(via[0])}</p></div>` : ""}
+      ${pts.length ? `<div class="rb-sec"><span>Pontos</span><ol class="rb-pts">${pts.map(p => { const km = fromPousada(p); return `<li><b>${p.order || "•"}</b> ${esc(p.name)}${km != null ? ` <em>${num(km, km < 10 ? 1 : 0)} km</em>` : ""}${p.lat == null ? " <em>sem posição</em>" : ""}</li>`; }).join("")}</ol></div>` : ""}
+      ${note ? `<p class="rb-note">${esc(note)}</p>` : ""}
+      <footer class="rb-foot"><span>Pernoite: <b>${esc(lodgingFor(i, ds))}</b></span><span>Expedição Chapada</span></footer>
+    </section>`;
+  }).join("");
+  return `<div class="rb-toolbar stack">${backLink}<div class="between"><h2>Roadbook</h2><button class="btn primary" data-act="printRb">Imprimir / salvar PDF</button></div>
+    <p class="note">Um cartão de 10 × 15 cm por dia. Ao imprimir, escolha <b>Salvar como PDF</b> para guardar no celular, ou imprima direto. Se a impressora pedir tamanho, use 10 × 15 cm (ou A6, com margens mínimas). Km em linha reta a partir da pousada; tempo só aparece quando a previsão estiver disponível.</p></div>
+    <div class="rb-grid" id="roadbookPages">${cards}</div>`;
 }
 
 /* ---------- eventos ---------- */
@@ -956,6 +1052,7 @@ $("#view").addEventListener("click", e => {
   else if (act === "st") { const rid = viewRider; if (!canEdit(rid)) return; const s = b.dataset.s;
     store.merge("checklist/" + rid, { items: { [id]: s === baseStatus(rid, id) ? null : s } }); }
   else if (act === "openMenu") openMenu();
+  else if (act === "printRb") { document.body.classList.add("printing-rb"); setTimeout(() => { window.print(); }, 50); }
   else if (act === "editSocial") { if (canEdit(id) || isAdmin()) socialForm(id); }
   else if (act === "newRider") { if (isAdmin()) riderForm(null); }
   else if (act === "editStory") { if (canEditAbout()) storyForm(); }
@@ -992,3 +1089,5 @@ $("#view").addEventListener("submit", e => {
 /* ---------- início ---------- */
 route = location.hash.slice(1) || "inicio";
 store.start((state, status) => { S = state; ST = status; render(); });
+
+addEventListener("afterprint", () => document.body.classList.remove("printing-rb"));
